@@ -53,6 +53,22 @@ def render(run: dict) -> str:
              f"<div class=kpi><span class=muted>Leads for judgment</span><b>{len(run['leads'])}</b></div>"
              f"<div class=kpi><span class=muted>Invariants</span><b class={'covered' if not inv else 'missing'}>{'pass' if not inv else f'{len(inv)} violated'}</b></div>"
              "</div>")
+    if run.get("slo"):
+        so = run["slo"]
+        d = so["diff"]
+        h.append("<h2>FinOps SLO <span class=muted>· is cost health holding, or rotting?</span></h2>")
+        h.append(f"<p>Since the previous run ({so['previous_runs']} earlier runs): "
+                 f"<b>{len(d['new'])}</b> new · <b>{len(d['persisting'])}</b> persisting · <b>{len(d['resolved'])}</b> resolved · "
+                 f"<b class={'missing' if d['regressed'] else 'covered'}>{len(d['regressed'])}</b> regressed</p>")
+        h.append("<div class=wrap><table><tr><th>SLI</th><th class=num>Value</th><th>Target</th><th>Status</th><th>Cadence</th><th>Evidence</th></tr>")
+        for r in so["rows"]:
+            v = "—" if r["value"] is None else (f"{r['value']:.1%}" if r["target"] <= 1 else f"{r['value']:g}")
+            t = f"{r['op']} " + (f"{r['target']:.0%}" if r["target"] <= 1 else f"{r['target']:g}")
+            cls = {"ok": "covered", "violated": "missing"}.get(r["status"], "partial")
+            extra = f" · budget used {r['budget_used']:.0%} of {_usd(r['budget_usd'])}" if r.get("budget_usd") else ""
+            h.append(f"<tr><td><b>{escape(r['id'])}</b><div class=muted>{escape(r['what'])}</div></td><td class=num>{v}</td><td>{escape(t)}</td>"
+                     f"<td class={cls}>{r['status']}</td><td>{r['cadence']}</td><td>{escape(r['evidence'])}{extra}</td></tr>")
+        h.append("</table></div>")
     if inv:
         h.append("<div class=card><h3 class=missing>Invariant violations</h3><ul>" + "".join(f"<li>{escape(v)}</li>" for v in inv) + "</ul></div>")
 

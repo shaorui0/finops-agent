@@ -1,0 +1,52 @@
+# FinOps SLOs: what "cost-healthy" means, so that rot is detected instead of
+# rediscovered at the next quarterly review. Each SLI is computed every run from
+# the snapshot, the metrics and the previous run's state (see docs/FINOPS_SLO.md).
+#
+# op: ">=" means the value must stay at or above target; "<=" at or below.
+
+slos:
+  - id: waste_ratio
+    what: open, evidenced waste (billed basis) as a share of spend
+    op: "<="
+    target: 0.05
+    budget: true            # the monthly waste budget is target x spend
+    cadence: daily
+  - id: attribution_coverage
+    what: share of spend that carries an owner tag
+    op: ">="
+    target: 0.90
+    cadence: weekly
+  - id: commitment_utilization
+    what: Savings Plan utilization over the period
+    op: ">="
+    target: 0.90
+    cadence: monthly
+  - id: orphan_max_age_days
+    what: age of the oldest orphaned resource (unattached volume, snapshot of a deleted volume)
+    op: "<="
+    target: 14
+    cadence: weekly
+  - id: anomaly_time_to_detect_days
+    what: days between the start of a cost anomaly and the run that first reported it
+    op: "<="
+    target: 1
+    cadence: daily
+  - id: useful_work_ratio
+    what: successful work / attempted work for fleets that report job outcomes
+    op: ">="
+    target: 0.95
+    cadence: daily
+  - id: visibility_coverage
+    what: share of required visibility SLIs that are fully covered by metrics
+    op: ">="
+    target: 1.0
+    cadence: weekly
+  - id: remediation_age_days
+    what: age of the oldest finding still open across runs
+    op: "<="
+    target: 30
+    cadence: weekly
+
+burn_alerts:
+  fast: {window: 1d, factor: 2.0}   # waste added in a day > 2x the daily budget
+  slow: {window: 7d, factor: 1.0}   # waste added in a week > the weekly budget

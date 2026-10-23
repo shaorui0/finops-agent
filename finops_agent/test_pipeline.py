@@ -24,7 +24,8 @@ class PipelineTest(unittest.TestCase):
         cls.prom, prom_url = _serve(metrics_server.Handler)
         cls.tmp = tempfile.TemporaryDirectory()
         args = Namespace(aws_endpoint=aws_url, prom=prom_url, region="us-east-1", start="2026-09-01", end="2026-10-01",
-                         out=cls.tmp.name, run_id="t", snapshot=None)
+                         out=cls.tmp.name, run_id="t", snapshot=None,
+                         state=f"{cls.tmp.name}/state.json", no_state=False)
         cls.out = run(args)
         cls.result = json.loads((cls.out / "findings.json").read_text())
         cls.by_type = {f["type"]: f for f in cls.result["findings"]}
@@ -36,7 +37,7 @@ class PipelineTest(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_artifacts_written(self):
-        for name in ("snapshot.json", "visibility.json", "findings.json", "trace.jsonl", "report.html"):
+        for name in ("snapshot.json", "visibility.json", "findings.json", "slo.json", "finops_metrics.prom", "trace.jsonl", "report.html"):
             self.assertTrue((self.out / name).exists(), name)
 
     def test_invariants_pass(self):
@@ -74,6 +75,13 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(gaps["unit_cost_per_job"], "missing")
         self.assertEqual(gaps["cross_az_attribution"], "partial")
         self.assertEqual(gaps["idle_detection"], "covered")
+
+    def test_slo_reflects_neglected_account(self):
+        rows = {r["id"]: r for r in self.result["slo"]["rows"]}
+        for sli in ("waste_ratio", "commitment_utilization", "useful_work_ratio", "anomaly_time_to_detect_days", "orphan_max_age_days"):
+            self.assertEqual(rows[sli]["status"], "violated", sli)
+        self.assertEqual(rows["anomaly_time_to_detect_days"]["value"], 27)
+        self.assertEqual(len(self.result["slo"]["diff"]["new"]), len(self.result["findings"]))
 
     def test_trace_is_read_only(self):
         ops = [json.loads(l)["op"] for l in (self.out / "trace.jsonl").read_text().splitlines()]

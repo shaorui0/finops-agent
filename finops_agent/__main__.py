@@ -3,7 +3,8 @@
   python3 -m finops_agent run --aws-endpoint http://127.0.0.1:4566 --prom http://127.0.0.1:9090
   python3 -m finops_agent run --snapshot runs/<id>/snapshot.json    # re-analyze a frozen snapshot
 
-Writes runs/<run_id>/{snapshot.json, visibility.json, findings.json, trace.jsonl, report.html}.
+Writes runs/<run_id>/{snapshot.json, visibility.json, findings.json, slo.json, finops_metrics.prom,
+trace.jsonl, report.html} and updates runs/state.json (cross-run state for rot detection).
 """
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from finops_agent.analyze import Analyzer, check_invariants
 from finops_agent.collect import Collector, Config, Trace, save
-from finops_agent import report, visibility
+from finops_agent import report, slo, visibility
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -44,6 +45,16 @@ def run(args) -> Path:
               "findings": findings, "leads": [l.to_dict() for l in a.leads], "ranking": a.ranking,
               "attribution": a.attribution_summary, "invariants": inv,
               "visibility": {"gaps": gaps}, "trace": trace.calls}
+    state_path = Path(args.state)
+    prev = slo.load_state(state_path)
+    slis = slo.compute_slis(result, snap, col, cfg.end, prev)
+    rows = slo.evaluate(slis, slo.load_cfg(ROOT / "config" / "finops_slo.yaml"))
+    diff, new_state = slo.diff_state(findings, prev, run_id, cfg.end)
+    result["slo"] = {"rows": rows, "diff": diff, "previous_runs": len((prev or {}).get("runs", []))}
+    save(result["slo"], out / "slo.json")
+    (out / "finops_metrics.prom").write_text(slo.to_prometheus(rows, diff, run_id, datetime.now(timezone.utc).timestamp()))
+    if not args.no_state:
+        save(new_state, state_path)
     save({k: v for k, v in result.items() if k != "trace"}, out / "findings.json")
     (out / "trace.jsonl").write_text("".join(json.dumps(c, default=str) + "\n" for c in trace.calls))
     (out / "report.html").write_text(report.render(result))
@@ -64,6 +75,8 @@ def main(argv=None):
     r.add_argument("--out", default=str(ROOT / "runs"))
     r.add_argument("--run-id", default=None)
     r.add_argument("--snapshot", default=None, help="analyze an existing snapshot instead of collecting")
+    r.add_argument("--state", default=str(ROOT / "runs" / "state.json"), help="cross-run state for rot detection")
+    r.add_argument("--no-state", action="store_true", help="do not update the cross-run state")
     args = ap.parse_args(argv)
     if args.cmd == "run":
         run(args)
