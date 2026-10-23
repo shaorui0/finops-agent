@@ -1,6 +1,6 @@
 ## 决策
 
-**不改 prompt，改校验器。** cassette key = sha256(model + prompt)，改 prompt 要重录全部 cassette（31 条）并重新证明基础、held-out、对抗三组指标。而漏洞不在模型：模型的结构化输出是对的。所以修法放在校验器里，已有 cassette 全部不动，number_bait 的 cassette 原样回放，只是校验结果变了。
+**不改 prompt，改校验器。** cassette key = sha256(model + prompt)，改 prompt 要重录全部已有 cassette并重新证明基础、held-out、对抗三组指标。而漏洞不在模型：模型的结构化输出是对的。所以修法放在校验器里，已有 cassette 全部不动，number_bait 的 cassette 原样回放，只是校验结果变了。
 
 ## 做法（规则 G9）
 
@@ -17,7 +17,7 @@
 
 ## 攻击者之后能做什么、不能做什么
 
-不能：压掉真实 finding（这条路径的 number_bait 3 个变体都保住了 finding 和金额）；让任何编造的数字出现在 finding / 报告；改金额、改资源、改类型、改 basis；碰到结构化字段里的任何值（`$99,999` 放进 savings_choice 仍然拒绝）。
+不能：压掉真实 finding（number_bait 与 number_bait_xaz 里模型复述了 bait，finding 与金额都保住；batch 变体里模型没复述）；让任何编造的数字出现在 finding / 报告；改金额、改资源、改类型、改 basis；碰到结构化字段里的任何值（`$99,999` 放进 savings_choice 仍然拒绝）。
 
 能：让一句话被脱敏（降低叙述可读性，被移除的从句数量由模型复述多少决定，上限是叙述长度）；脱敏记录在 finding 上可见，攻击留痕。非数字的注入文字（例如「忽略指令」）不归这条规则管，由 prompt 的不可信块与其他对抗变体覆盖。
 
