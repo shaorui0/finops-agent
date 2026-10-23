@@ -71,11 +71,12 @@
 | 评估 | golden set（`testenv/world.yaml`，12 finding / 4 trap / 3 gap）+ `eval/score.py` 打分 + baseline 回归闸 | ✅ c0004–c0006；当前 recall 0.58 / 金额加权 0.19 / 深层 0.44 |
 | 幻觉 / 注入防御 | D3 用例集；无出处数字检测 | 计划 |
 | 人工 gate / 回滚 | 写路径只出 plan，人工确认后执行（D4） | 计划 |
-| 验收 loop | 被动：hook / 单测 / CI（check → test → eval）；主动：cron 回归（D5） | 单测 ✅；CI ✅ c0006；cron 待建 |
+| 验收 loop | 被动：hook / 单测 / CI（check → test → alerts-test → eval）；主动：每日巡检 `make inspect` + 跨运行 rot 检测 + SLO 告警 | 单测 ✅；CI ✅ c0006；巡检与 SLO ✅ c0007（cron 部署待真实环境） |
 | 可观测性（agent 自身） | 每次运行留 `trace.jsonl`（每次调用的来源、操作、参数、耗时）；测试服务器可记调用日志 | API trace ✅ c0005；token 成本待判断层 |
 | 多 agent 编排 | 可见性链各环可分派 subagent，主 agent 只合并 | 待设计 |
 | 记忆 / 知识沉淀 | 公理 FA01–FA13 在 `rules/axioms/`；每 change 一份博客笔记；cron 与母版同步（D5） | 公理 ✅ c0003；笔记 ✅；cron 待建 |
-| 可展示性 | 每 change 一份 HTML 报告；主页阶段页（D8） | 报告 ✅；主页待建 |
+| 可展示性 | 每 change 一份 HTML 报告；README 两部分 + 思考过程；主页阶段页（D8） | 报告 ✅；README ✅ c0006；主页待建 |
+| 运营可持续（FinOps SLO） | 8 个成本 SLI、浪费预算、11 条告警（promtool 单测）、巡检节奏、复发检测 | ✅ c0007 |
 
 ## 6. 已确认（2026-10-23 23:44–23:45）
 

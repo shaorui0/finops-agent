@@ -78,7 +78,7 @@ Full method: [`docs/METHOD.md`](docs/METHOD.md).
 - One root cause can raise several bill lines. Find it before pricing each line.
 - Savings never exceed spend. If they do, attribution is wrong.
 - Every amount states its basis: billed, list price, or inferred.
-- A cleanup decays. Cost health needs SLOs, a waste budget and a cadence, the same as reliability (c0007, in progress).
+- A cleanup decays. Cost health needs SLOs, a waste budget, alerts and an inspection cadence, the same as reliability. See [`docs/FINOPS_SLO.md`](docs/FINOPS_SLO.md).
 
 ### 1.3 Current results on the test account
 
@@ -118,6 +118,7 @@ The deterministic layer stops where cross-source judgment starts; those five fin
 | Invariants | Savings ≤ spend, basis required, evidence required | Catches wrong answers whoever produced them |
 | Visibility chain | Goal-first metric requirements → plan → search → gaps | Missing metrics are findings too |
 | Eval | Score against ground truth; traps; regression baseline | "Better" is a number, and CI enforces it |
+| SLO & rot | SLIs per run, waste budget, new / persisting / resolved / regressed across runs, Prometheus export + alert rules | A cleanup decays; the next run must notice |
 
 ### 2.2 Design principles
 
@@ -167,7 +168,8 @@ One row per change, appended at acceptance. Full trail: `git log`, `openspec/cha
 | `finops_agent/` | The pipeline: collect → snapshot → detectors → visibility chain → report |
 | `testenv/` | Synthetic account + test-aws-server + test-metrics-server |
 | `eval/` | Scorer against ground truth + regression baseline |
-| `config/` | Visibility requirements (ring 1), FinOps SLOs |
+| `config/` | Visibility requirements (ring 1), FinOps SLOs, alert rules (`config/alerts/`) |
+| `ops/` | Inspection cadence (`crontab.example`) |
 | `docs/` | Requirements, method, distillation, AWS hardening |
 | `rules/` | Project rules layer |
 | `hooks/` | Guardrails (registered in `.claude/settings.json`) |

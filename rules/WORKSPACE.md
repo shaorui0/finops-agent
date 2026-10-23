@@ -22,6 +22,9 @@
 | 可见性需求（第 ① 环） | `config/visibility_requirements.yaml` |
 | 运行产物（不进 git） | `runs/<run_id>/` |
 | 评估打分与基线 | `eval/`（`make eval`） |
+| FinOps SLO 定义与告警规则 | `config/finops_slo.yaml`、`config/alerts/`（`make alerts-test`），说明见 `docs/FINOPS_SLO.md` |
+| 巡检节奏（cron 示例） | `ops/crontab.example`（`make inspect`） |
+| 跨运行状态（运行时生成，不进 git） | runs 目录下的 state.json |
 
 ## 命名
 
