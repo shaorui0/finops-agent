@@ -19,7 +19,7 @@
 | R7 | 评估与迭代：用什么指标、优化什么、为什么优化、结果是否可验证可复用；"不是去判断，而是去验证" | 2311、2331 | 本项目 |
 | R8 | 过程即交付：每个 change 走 OpenSpec + 一个 commit，有验收 loop（被动 loop + 主动 loop），不能"只有开发没有测试" | 2335 | 本项目 |
 | R9 | 每个 change 产出：本地 HTML 报告（**不是** Claude artifact）+ 博客想法（只整理核心内容，**不做写作优化**） | 2335 | 本项目 |
-| R10 | cron 定期把项目的公理/规则蒸馏出来，形成本项目自己的 context 层（context、rules：axioms / skills / communication / soul / user / workspace），以 context-infrastructure 为母版 | 2335 | 本项目 |
+| R10 | cron 定期把项目的公理/规则蒸馏出来，形成本项目自己的规则层 `rules/`（axioms / skills / communication / soul / user / workspace），以 context-infrastructure 为母版 | 2335 | 本项目 |
 | R11 | 发到 GitHub，标准是"完完整整真正好的开源项目" | 2335 | 本项目 |
 | R12 | 该做成 skill 的都做成 skill，包括"每个 change 一个 commit"这个动作本身 | 2335 末尾 | 本项目 |
 | R13 | prompt prehook：每次发 prompt 时，按我的认知/公理去校验或优化 prompt | 2335 开头 | **context-infrastructure，不在本仓库** |
@@ -63,7 +63,7 @@
 
 | 面 | 本项目里的实现 | 状态 |
 |---|---|---|
-| Context engineering（上限） | FinOps 领域模型作为 context；`context/` 蒸馏层（D5） | 计划 |
+| Context engineering（上限） | 项目级规则层 `rules/`（SOUL/USER/COMMUNICATION/WORKSPACE/axioms/skills），每次会话由 `CLAUDE.md` 加载；FinOps 领域模型作为 context | 规则层 ✅ c0003；领域模型计划 |
 | 权限与边界（下限） | 项目 hook `aws_readonly_guard.py` + AWS 侧 H1–H7 | hook ✅ c0001；AWS 侧待建 |
 | Spec 驱动 | 每个 change 一个 OpenSpec change，proposal/spec/tasks/evidence 留痕 | ✅ 从 c0001 起 |
 | 任务分解 / 计划 | 可见性链四环（D1b），每环先计划后执行 | 计划 |
@@ -74,7 +74,7 @@
 | 验收 loop | 被动：hook / 单测 / CI；主动：cron 回归（D5） | 单测 ✅；CI、cron 待建 |
 | 可观测性（agent 自身） | 每次运行留 trace：调用了哪些工具、花了多少 token / API 费 | 待设计 |
 | 多 agent 编排 | 可见性链各环可分派 subagent，主 agent 只合并 | 待设计 |
-| 记忆 / 知识沉淀 | 公理蒸馏进 `context/`；每 change 一份博客笔记 | 笔记 ✅；蒸馏待建 |
+| 记忆 / 知识沉淀 | 公理 FA01–FA13 在 `rules/axioms/`；每 change 一份博客笔记；cron 与母版同步（D5） | 公理 ✅ c0003；笔记 ✅；cron 待建 |
 | 可展示性 | 每 change 一份 HTML 报告；主页阶段页（D8） | 报告 ✅；主页待建 |
 
 ## 6. 已确认（2026-10-23 23:44–23:45）

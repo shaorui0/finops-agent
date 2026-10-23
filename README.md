@@ -24,7 +24,8 @@ Every finding carries its evidence (resource, metric, window, formula). Numbers 
 | `.claude/skills/` | Project skills (`finops-change-loop` + OpenSpec skills) |
 | `reports/` | One HTML report per change |
 | `notes/blog/` | Raw idea notes per change |
-| `context/` | Distilled project context (axioms, rules) — planned |
+| `rules/` | Project rules layer loaded every session (soul, user, communication, workspace, axioms, skills) — see `docs/DISTILLATION.md` |
+| `tools/` | Repo self-checks (`check_rules.py`: rules integrity + leak scan) |
 | `hooks/` | Project guardrails — `aws_readonly_guard.py` blocks non-read AWS CLI calls (registered in `.claude/settings.json`) |
 
 ## License
