@@ -5,6 +5,7 @@ from collections import Counter
 from html import escape
 
 from finops_agent import slo
+from finops_agent.fivepart import LABELS
 
 STEPS = [
     ("M0", "以终为始", "成本目标，以及衡量它们的 SLI"),
@@ -27,8 +28,54 @@ h3{font-size:15px;margin:0 0 6px}.muted{color:var(--muted)}.kpis{display:grid;gr
 .chain{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chain span{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px}
 .chain span+span:before{content:"→ ";color:var(--muted)}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--muted);font-weight:600}.num{text-align:right;font-variant-numeric:tabular-nums}.tag{font-size:12px;border-radius:4px;padding:1px 6px;border:1px solid var(--line)}
-.covered{color:var(--ok)}.partial{color:var(--warn)}.missing{color:var(--bad)}code{font-size:12px;word-break:break-all}.wrap{overflow-x:auto}
+.fp{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:8px 0}.fp h4{font-size:13px;margin:0 0 2px;color:var(--accent)}.fp p{margin:2px 0}.fp pre{margin:4px 0;white-space:pre-wrap;word-break:break-all;font-size:12px}
+.badge{font-size:12px;border-radius:4px;padding:1px 6px;border:1px solid var(--line);font-weight:600}.rev-none,.rev-low{color:var(--ok)}.rev-medium{color:var(--warn)}.rev-high{color:var(--bad)}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}.covered{color:var(--ok)}.partial{color:var(--warn)}.missing{color:var(--bad)}code{font-size:12px;word-break:break-all}.wrap{overflow-x:auto}
 """
+
+
+REV_ZH = {"none": "无", "low": "低", "medium": "中", "high": "高"}
+
+
+def _plan_html(plan) -> str:
+    if not plan:
+        return ""
+    h = [f"<div><span class='badge rev-{plan['reversal_cost']}'>撤回成本：{REV_ZH.get(plan['reversal_cost'], plan['reversal_cost'])}</span> "
+         f"<span class=tag>{escape(plan['plan_id'])}</span> <span class=tag>{escape(plan['mode'])}</span> "
+         f"<span class=muted>{escape(plan['reversal_reason'])}</span></div>"]
+    if plan["steps"]:
+        h.append("<pre>" + escape("\n".join(plan["steps"])) + "</pre>")
+    if plan["rollback"]:
+        h.append("<div><b>回滚：</b></div><ul>" + "".join(f"<li><code>{escape(r)}</code></li>" for r in plan["rollback"]) + "</ul>")
+    if plan.get("advice"):
+        h.append(f"<div>{escape(plan['advice'])}</div>")
+    h.append(f"<div class=muted><b>审批：</b>需人工审批；通知 {escape(plan['owner'])}。本次运行没有执行任何命令。</div>")
+    return "".join(h)
+
+
+def _fivepart_html(fp: dict, plan) -> str:
+    """The five labelled parts of one finding card: 现状 / 期望 / 差异 / 处置 / 预防."""
+    def part(key, body):
+        return f"<section class='fp fp-{key}'><h4>{LABELS[key]}</h4>{body}</section>"
+    lines = "".join(f"<li>{escape(x)}</li>" for x in fp["runbook"])
+    prev = "".join(f"<p>{escape(x)}</p>" for x in fp["prevention"].split("\n"))
+    return (part("status", f"<p>{escape(fp['status'])}</p>") + part("spec", f"<p>{escape(fp['spec'])}</p>") +
+            part("diff", f"<p>{escape(fp['diff'])}</p>") +
+            part("runbook", _plan_html(plan) + f"<ul>{lines}</ul>") + part("prevention", prev))
+
+
+def _plans_overview(run: dict) -> str:
+    pd = run["plans"]
+    h = ["<h2>处置计划 <span class=muted>· dry-run，本次运行没有执行任何命令</span></h2>",
+         f"<p>{len(pd['plans'])} 个计划，顺序：{escape(pd['order'])}。每个计划都带撤回成本和回滚；命令只是文本，由人审批后自己执行。"
+         + (f" 没有处理器的 finding：{len(pd['skipped'])} 个。" if pd["skipped"] else "") + "</p>",
+         "<div class=wrap><table><tr><th>计划</th><th>类型</th><th class=num>节省/月</th><th>撤回成本</th><th>模式</th><th>owner</th></tr>"]
+    for p in pd["plans"]:
+        h.append(f"<tr><td><b>{escape(p['plan_id'])}</b></td><td>{escape(p['type'])}</td><td class=num>{_usd(p['monthly_savings_usd'])}</td>"
+                 f"<td><span class='badge rev-{p['reversal_cost']}'>{REV_ZH.get(p['reversal_cost'], p['reversal_cost'])}</span></td>"
+                 f"<td>{escape(p['mode'])}</td><td>{escape(p['owner'])}</td></tr>")
+    h.append("</table></div>")
+    return "".join(h)
 
 
 def _usd(v):
@@ -86,6 +133,8 @@ def render(run: dict) -> str:
              f"<div class=muted>账号 {escape(run['account'])} · 周期 {run['period']['Start']} → {run['period']['End']} · "
              f"{sum(1 for c in run['trace'] if c['source'] != 'llm')} 次只读 API 调用 · {sum(1 for c in run['trace'] if c['source'] == 'llm')} 次 LLM 调用</div>")
     inv = run["invariants"]
+    fps = {x["finding_id"]: x for x in run.get("fivepart", [])}
+    plans = {p["finding_id"]: p for p in run.get("plans", {}).get("plans", [])}
     h.append("<div class=kpis>"
              f"<div class=kpi><span class=muted>花费（amortized）</span><b>{_usd(total)}</b></div>"
              f"<div class=kpi><span class=muted>发现</span><b>{len(f)}</b></div>"
@@ -110,6 +159,8 @@ def render(run: dict) -> str:
             h.append(f"<tr><td><b>{escape(r['id'])}</b><div class=muted>{escape(r['what'])}</div></td><td class=num>{v}</td><td>{escape(t)}</td>"
                      f"<td class={cls}>{r['status']}</td><td>{r['cadence']}</td><td>{escape(r['evidence'])}{extra}</td></tr>")
         h.append("</table></div>")
+    if run.get("plans"):
+        h.append(_plans_overview(run))
     if inv:
         h.append("<div class=card><h3 class=missing>违反不变量</h3><ul>" + "".join(f"<li>{escape(v)}</li>" for v in inv) + "</ul></div>")
 
@@ -136,16 +187,20 @@ def render(run: dict) -> str:
         step_f = [x for x in f if x["method_step"] == key]
         step_l = [x for x in run["leads"] if x["method_step"] == key]
         for x in step_f:
-            h.append("<div class=card>"
+            fp = fps.get(x["id"])
+            plan = plans.get(x["id"])
+            h.append(f"<div class='card finding' id='{escape(x['id'])}'>"
                      f"<h3>{escape(x['id'])} · {escape(x['title'])}</h3>"
                      f"<div class=muted>{escape(x['type'])} · 节省 <b>{_usd(x['monthly_savings_usd'])}</b> "
                      f"<span class=tag>{escape(x['basis'])}</span>"
-                     + (f" · 资源花费 {_usd(x['resource_spend_usd'])}" if x.get('resource_spend_usd') is not None else "") + "</div>"
+                     + (f" · 资源花费 {_usd(x['resource_spend_usd'])}" if x.get('resource_spend_usd') is not None else "")
+                     + f" · owner <b>{escape(x.get('owner', '未知'))}</b></div>"
                      f"<div class=muted>资源：<code>{escape('、'.join(x['resources']))}</code></div>"
-                     "<div class=chain>" + "".join(f"<span>{escape(hp)}</span>" for hp in x["hops"]) + "</div>"
+                     + (_fivepart_html(fp, plan) if fp else "") +
+                     "<details><summary>证据与推理链</summary><div class=chain>" + "".join(f"<span>{escape(hp)}</span>" for hp in x["hops"]) + "</div>"
                      "<div class=wrap><table><tr><th>来源</th><th>证据</th><th>出处</th></tr>" +
                      "".join(f"<tr><td>{escape(e['source'])}</td><td>{escape(e['what'])}</td><td><code>{escape(e['ref'])}</code></td></tr>" for e in x["evidence"]) +
-                     "</table></div></div>")
+                     "</table></div></details></div>")
         judged = {j["lead"]: j for j in run.get("judgments", [])}
         for l in step_l:
             h.append(f"<div class=card><h3>{escape(l['id'])} · 线索：{escape(l['signal'])}</h3>"

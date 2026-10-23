@@ -13,6 +13,9 @@ from dataclasses import asdict, dataclass, field
 GP3_DISCOUNT = 0.20   # gp3 list price is 20% below gp2 per GB-month
 
 
+NO_OWNER = "未知"
+
+
 @dataclass
 class Evidence:
     source: str        # cost_explorer | ec2 | metrics | savingsplans
@@ -33,6 +36,7 @@ class Finding:
     basis: str         # billed | billed_14d_extrapolated | list_price | inferred | none
     resource_spend_usd: float | None = None
     detector: str = ""
+    owner: str = NO_OWNER   # from resource tags (assign_owners); NO_OWNER when no resource carries one
 
     def to_dict(self):
         d = asdict(self)
@@ -293,6 +297,39 @@ class Analyzer:
             self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{asg}：{len(ids)} 台实例，这个 fleet 在干有用的活吗？", "M3_delete",
                                    [Evidence("ec2", f"{len(ids)} 台运行中实例", "DescribeAutoScalingGroups")],
                                    ["CPU 说它很忙，可工作的成功率是多少？"], kind="fleet_work", params={"asg": asg}))
+
+
+def owners_by_resource(snap: dict) -> dict:
+    """resource id -> owner tag value, for everything in the snapshot that carries tags.
+
+    An ASG has no tags of its own: it gets the owner(s) of its member instances."""
+    out = {}
+    for kind in ("instances", "volumes", "addresses", "snapshots", "images"):
+        for o in snap.get(kind, []):
+            rid = o.get("InstanceId") or o.get("VolumeId") or o.get("AllocationId") or o.get("SnapshotId") or o.get("ImageId")
+            owner = _tags(o).get("owner")
+            if rid and owner:
+                out[rid] = owner
+    for a in snap.get("asgs", []):
+        members = [_tags(i).get("owner") for i in snap["instances"]
+                   if _tags(i).get("aws:autoscaling:groupName") == a["AutoScalingGroupName"]]
+        members = sorted({m for m in members if m})
+        if members:
+            out[a["AutoScalingGroupName"]] = "、".join(members)
+    return out
+
+
+def assign_owners(findings: list, snap: dict) -> dict:
+    """Set Finding.owner from resource tags; returns the resource->owner map used."""
+    owners = owners_by_resource(snap)
+    for f in findings:
+        seen = []
+        for r in f.resources:
+            for o in owners.get(r, "").split("、"):
+                if o and o not in seen:
+                    seen.append(o)
+        f.owner = "、".join(seen) if seen else NO_OWNER
+    return owners
 
 
 def check_invariants(findings: list[Finding]) -> list[str]:

@@ -37,8 +37,13 @@ class PipelineTest(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_artifacts_written(self):
-        for name in ("snapshot.json", "visibility.json", "findings.json", "slo.json", "finops_metrics.prom", "trace.jsonl", "report.html"):
+        for name in ("snapshot.json", "visibility.json", "findings.json", "plans.json", "fivepart.json", "slo.json", "finops_metrics.prom", "trace.jsonl", "report.html"):
             self.assertTrue((self.out / name).exists(), name)
+
+    def test_plans_and_owner_on_every_run(self):
+        plans = json.loads((self.out / "plans.json").read_text())
+        self.assertEqual(len(plans["plans"]), sum(1 for f in self.result["findings"] if f["monthly_savings_usd"] > 0 or f["method_step"] == "M5_commitment"))
+        self.assertTrue(all("owner" in f for f in self.result["findings"]))
 
     def test_invariants_pass(self):
         self.assertEqual(self.result["invariants"], [])
