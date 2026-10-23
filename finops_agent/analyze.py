@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 
+PERSISTENT_RATIO = 2.0   # window median / pre-window baseline above this = persistent anomaly
 GP3_DISCOUNT = 0.20   # gp3 list price is 20% below gp2 per GB-month
 
 
@@ -297,6 +298,37 @@ class Analyzer:
             self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{asg}：{len(ids)} 台实例，这个 fleet 在干有用的活吗？", "M3_delete",
                                    [Evidence("ec2", f"{len(ids)} 台运行中实例", "DescribeAutoScalingGroups")],
                                    ["CPU 说它很忙，可工作的成功率是多少？"], kind="fleet_work", params={"asg": asg}))
+        self._persistent_cost_leads({l.params.get("usage_type") for l in self.leads if l.kind == "cost_growth"})
+
+    def _persistent_cost_leads(self, already):
+        """Cost that was already elevated when the window opened: the in-window jump test cannot see it.
+
+        Baseline = 25th percentile of the same usage type's daily cost over the history before the window (snapshot
+        `cost_history_daily_by_usage_type`, ~92 days), so an incident that covers less than ~75% of the history still
+        leaves the baseline at the pre-incident level. Usage types that already produced a jump lead are skipped, and a
+        type with no history (new usage) has no baseline and is skipped. Runs after the other cost-shape leads so existing
+        lead ids do not move."""
+        hist = defaultdict(list)
+        for d in self.s.get("cost_history_daily_by_usage_type") or []:
+            for g in d["Groups"]:
+                hist[g["Keys"][0]].append((d["TimePeriod"]["Start"], _amt(g["Metrics"])))
+        win = defaultdict(list)
+        for d in self.s["cost_daily_by_usage_type"]:
+            for g in d["Groups"]:
+                win[g["Keys"][0]].append((d["TimePeriod"]["Start"], _amt(g["Metrics"])))
+        for ut, pts in win.items():
+            h = sorted(v for _, v in hist.get(ut, []))
+            vals = sorted(v for _, v in pts)
+            if ut in already or len(h) < 30 or len(vals) < 7 or max(v for _, v in pts) < 5:
+                continue
+            base, level = h[len(h) // 4], vals[len(vals) // 2]
+            if base <= 0 or level / base <= PERSISTENT_RATIO:
+                continue
+            since = next((d for d, v in sorted(hist[ut] + pts) if v > base * PERSISTENT_RATIO), pts[0][0])
+            self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{ut} 比此前基线高 {level / base:.1f} 倍，周期开始前就已抬高（自 {since} 起）", "M2_ranking",
+                                   [Evidence("cost_explorer", f"{ut}：本周期日均中位 ${level:,.2f}/天，此前 {len(h)} 天基线（P25）${base:,.2f}/天", "GetCostAndUsage DAILY by USAGE_TYPE, history before the window")],
+                                   ["那一天发生了什么变化？", "哪些工作负载在发这些流量？", "这条路径本身能不能避开？"], since=since,
+                                   kind="cost_growth", params={"usage_type": ut}))
 
 
 def owners_by_resource(snap: dict) -> dict:

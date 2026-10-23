@@ -2,7 +2,7 @@
 
 A one-off cleanup decays. This module turns each run into a measurement:
 SLI values against targets, a waste budget, and a state diff that marks
-findings as new / persisting / resolved / regressed. `regressed` (a resource
+findings as new / persisting / resolved / not_redetected / regressed. `regressed` (a resource
 that was fixed and came back) is the clearest sign that the system is rotting.
 """
 from __future__ import annotations
@@ -26,6 +26,8 @@ def _age_days(ts: str, now: date) -> float:
 
 
 def compute_slis(result: dict, snap: dict, collector, run_date: date, state: dict | None) -> dict:
+    global _LAST_SNAP
+    _LAST_SNAP = snap
     spend = result["ranking"]["total"]
     vals, evidence = {}, {}
 
@@ -103,26 +105,109 @@ def evaluate(slis: dict, cfg: dict) -> list[dict]:
     return rows
 
 
-def diff_state(findings: list[dict], state: dict | None, run_id: str, run_date: date) -> tuple[dict, dict]:
-    """Compare this run with the previous state. Returns (diff, new_state)."""
+_LAST_SNAP: dict | None = None   # set by compute_slis; lets diff_state see the snapshot without a signature change in __main__
+COST_DROP = 0.9                  # a resource whose daily cost fell below this share of what it was when detected has changed
+
+
+def _inventory(snap: dict) -> dict:
+    """resource id -> the attributes whose change means someone touched the resource."""
+    out = {}
+    for i in snap.get("instances", []):
+        out[i["InstanceId"]] = (i["State"]["Name"], i.get("InstanceType"))
+    for v in snap.get("volumes", []):
+        out[v["VolumeId"]] = (v["State"], v.get("VolumeType"), v.get("Size"), v.get("Iops"), len(v.get("Attachments", [])))
+    for a in snap.get("addresses", []):
+        out[a["AllocationId"]] = (bool(a.get("AssociationId")),)
+    for x in snap.get("snapshots", []):
+        out[x["SnapshotId"]] = ("snapshot",)
+    for x in snap.get("images", []):
+        out[x["ImageId"]] = ("image",)
+    for g in snap.get("asgs", []):
+        out[g["AutoScalingGroupName"]] = (g.get("DesiredCapacity"),)
+    for p in snap.get("savings_plans", []):
+        out[p["savingsPlanId"]] = (p.get("state"), p.get("commitment"))
+    for n in snap.get("nat_gateways", []):
+        out[n["NatGatewayId"]] = (n["State"],)
+    return out
+
+
+def _evidence(snap: dict, key: str) -> dict:
+    """Cost-side and inventory-side facts for every resource of a finding key, as of this snapshot."""
+    inv = _inventory(snap)
+    r = snap["resource_period"]
+    res_days = max(1, (date.fromisoformat(r["End"]) - date.fromisoformat(r["Start"])).days)
+    cost = {}
+    for b in snap.get("cost_by_resource_14d", []):
+        for g in b["Groups"]:
+            cost[g["Keys"][0]] = cost.get(g["Keys"][0], 0.0) + float(g["Metrics"]["UnblendedCost"]["Amount"])
+    return {rid: {"present": rid in inv, "attrs": list(inv.get(rid, ())), "cost_day": round(cost.get(rid, 0.0) / res_days, 6)}
+            for rid in key.split("|", 1)[1].split(",")}
+
+
+def _verdict(key: str, prev_ev: dict | None, snap: dict) -> tuple[str, str]:
+    """('resolved' | 'not_redetected', reason) for a finding that was not reported this run.
+
+    resolved = the resource is gone from the inventory, or its attributes/cost changed since it was detected.
+    not_redetected = at least one resource that was there is still there, unchanged and still billing: the finding
+    disappeared but the thing it was about did not, so a missed detection must not be recorded as a fix."""
+    now = _evidence(snap, key)
+    if not prev_ev:
+        still = [r for r, e in now.items() if e["present"]]
+        return ("not_redetected", f"{','.join(still)} 仍在账号里，没有检测时的基线可比") if still else ("resolved", "资源已不在清单里")
+    unchanged = []
+    for rid, before in prev_ev.items():
+        if not before.get("present"):
+            continue
+        n = now.get(rid) or {"present": False, "attrs": [], "cost_day": 0.0}
+        if not n["present"]:
+            continue
+        cost_dropped = before["cost_day"] > 0 and n["cost_day"] < before["cost_day"] * COST_DROP
+        if n["attrs"] == before["attrs"] and not cost_dropped:
+            unchanged.append(rid)
+    if unchanged:
+        return "not_redetected", f"{','.join(unchanged)} 仍在清单里，属性和成本与检测时一致"
+    return "resolved", "资源已不在清单里，或属性/成本已变化"
+
+
+def diff_state(findings: list[dict], state: dict | None, run_id: str, run_date: date, snap: dict | None = None) -> tuple[dict, dict]:
+    """Compare this run with the previous state. Returns (diff, new_state).
+
+    A finding that is gone is `resolved` only with cost-side evidence that the resource or its usage changed; if the
+    resource is still there and still costs the same it is `not_redetected` (a missed detection, not a fix). Without a
+    snapshot (callers that predate this) every gone finding is `resolved`, the old behavior."""
+    global _LAST_SNAP
+    snap, _LAST_SNAP = (snap if snap is not None else _LAST_SNAP), None
     state = state or {"runs": [], "first_seen": {}, "resolved": {}}
     prev_open = set(state.get("open", []))
+    missed = dict(state.get("not_redetected", {}))
+    ev = dict(state.get("evidence", {}))
     resolved = dict(state.get("resolved", {}))
     first_seen = dict(state.get("first_seen", {}))
     now = {_key(f): f for f in findings}
-    diff = {"new": [], "persisting": [], "resolved": [], "regressed": []}
+    diff = {"new": [], "persisting": [], "resolved": [], "regressed": [], "not_redetected": []}
     for k, f in now.items():
         if k in resolved:
             diff["regressed"].append({"key": k, "finding": f["id"], "resolved_in": resolved.pop(k)})
-        elif k in prev_open:
+        elif k in prev_open or k in missed:
             diff["persisting"].append({"key": k, "finding": f["id"], "since": first_seen.get(k)})
         else:
             diff["new"].append({"key": k, "finding": f["id"]})
+        missed.pop(k, None)
         first_seen.setdefault(k, run_date.isoformat())
-    for k in prev_open - set(now):
-        diff["resolved"].append({"key": k})
-        resolved[k] = run_id
-    new_state = {"runs": state.get("runs", []) + [run_id], "open": sorted(now), "first_seen": first_seen, "resolved": resolved}
+        if snap is not None:
+            ev[k] = _evidence(snap, k)
+    for k in sorted((prev_open | set(missed)) - set(now)):
+        verdict, why = _verdict(k, ev.get(k), snap) if snap is not None else ("resolved", "")
+        if verdict == "resolved":
+            diff["resolved"].append({"key": k})
+            resolved[k] = run_id
+            missed.pop(k, None)
+            ev.pop(k, None)
+        else:
+            missed.setdefault(k, run_id)
+            diff["not_redetected"].append({"key": k, "since": missed[k], "why": why})
+    new_state = {"runs": state.get("runs", []) + [run_id], "open": sorted(now), "first_seen": first_seen, "resolved": resolved,
+                 "not_redetected": missed, "evidence": {k: v for k, v in ev.items() if k in now or k in missed}}
     return diff, new_state
 
 
