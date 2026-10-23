@@ -1,0 +1,44 @@
+# Scenario overlay for the savings-verification chain (c0021), period 1 of 3: 2026-09 with a few extra resources.
+#
+# Chain: verify_base (09) -> verify_month1 (10) -> verify_month2 (11), all stacked on testenv/world.yaml.
+# The base world is untouched; this file only adds what the verifier needs to see REAL deviations
+# (c0018 found 100% on the original chain because bills and predictions share one price table).
+#
+# Added here:
+#   vol-0vfya..  600 GB gp2, unattached, created 2026-07-10   -> deleted in the middle of October (proration)
+#   vol-0vfyc..  2000 GB gp2, in use on orders-db            -> converted to gp3 while data grows 30% (usage drift)
+#   vol-0vfyk1..3  3000 GB gp3 data volumes on web-1..3       -> untouched control group that also grows 30%
+#   prices.gp3_iops_month / gp3_throughput_month              -> gp3 bills provisioned IOPS above 3000, MB/s above 125
+#   claims C01   "stop the idle hours of the 3 dev m5.2xlarge" -> the naive on-demand number from GT05, not an agent finding
+scenario:
+  name: verify_base
+  base: ../world.yaml
+  story:
+    headline: "核实链的起点：09 月基础世界加上几张用来制造真实偏差的卷"
+    narrative: "基础世界不动，叠加一张将被期中删除的未挂载卷、一张将在增长中被改成 gp3 的 gp2 卷，以及三张同样会增长的未动数据卷（对照组）。dev 车队的纸面节省 C01 是按按需价算的，而它们被 Savings Plan 覆盖。"
+  claims:
+    - id: C01
+      type: schedule_dev_but_sp_covered
+      title: 给 3 台 dev m5.2xlarge 配启停计划，只在工作时段开机
+      method: on_demand_idle_hours       # predicted = sum(on-demand hourly x 24 x 30) x (1 - target_uptime), from the world's price table
+      instances: [i-0a1b2c3d4e5f60601, i-0a1b2c3d4e5f60602, i-0a1b2c3d4e5f60603]
+      target_uptime: 0.3                 # weekdays 00-10 UTC = 50 of 168 hours
+      source: "GT05 的纸面节省（按需价 x 闲置小时），不是 --no-judge agent 的输出"
+
+set:
+  prices: {gp3_iops_month: 0.005, gp3_throughput_month: 0.04}
+
+add:
+  volumes:
+    - {id: vol-0vfya000000000001, size: 600, type: gp2, az: us-east-1a, state: available,
+       created: "2026-07-10T08:00:00Z", tags: {Name: etl-staging-old, owner: team-data}}
+
+patch:
+  instances:
+    i-0a1b2c3d4e5f60301:      # orders-db
+      volumes:
+        - {id: vol-0db0000000000a001, size: 1000, type: gp2}
+        - {id: vol-0vfyc000000000001, size: 2000, type: gp2}
+    i-0a1b2c3d4e5f60101: {volumes: [{id: vol-0vfyk000000000001, size: 3000, type: gp3}]}
+    i-0a1b2c3d4e5f60102: {volumes: [{id: vol-0vfyk000000000002, size: 3000, type: gp3}]}
+    i-0a1b2c3d4e5f60103: {volumes: [{id: vol-0vfyk000000000003, size: 3000, type: gp3}]}

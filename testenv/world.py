@@ -9,6 +9,12 @@ Cost model (per day, per line):
   - Savings Plan recurring fee: unblended = commitment x 24h; amortized = the
     unused part only (the used part is amortized into the covered instances).
   - EBS, snapshots, NAT, cross-AZ, public IPv4, flat services: unblended = amortized.
+
+Optional scenario fields (absent in the base world, so base output is unchanged):
+  - volume `deleted: <date>`: billed on days before it, gone from the API at the end of the period.
+  - gp3 volume `iops` / `throughput`: provisioned above the free 3000 IOPS / 125 MB/s adds
+    EBS:VolumeP-IOPS.gp3 / EBS:VolumeP-Throughput.gp3 lines (prices.gp3_iops_month / gp3_throughput_month).
+  - instance `uptime: {fraction: f, since: <date>}`: runs f x 24 h per day from that date (a start/stop schedule).
 """
 from __future__ import annotations
 
@@ -118,14 +124,18 @@ class World:
             })
         return out
 
-    def all_volumes(self) -> list[dict]:
+    def all_volumes(self, billing: bool = False) -> list[dict]:
+        """Volumes the API shows at the end of the period; `billing=True` also returns volumes deleted during it."""
+        _, end = self.period
         vols = []
         for inst in self.instances:
             for v in inst.get("volumes", []):
                 vols.append({**v, "az": inst["az"], "state": "in-use", "instance": inst["id"],
-                             "tags": inst["tags"], "created": "2025-10-01T00:00:00Z"})
+                             "tags": inst["tags"], "created": v.get("created", "2025-10-01T00:00:00Z")})
         for v in self.raw["volumes"]:
             vols.append({**v, "instance": None})
+        if not billing:
+            vols = [v for v in vols if not v.get("deleted") or _d(v["deleted"]) >= end]
         return vols
 
     # ---- savings plan ----------------------------------------------------
@@ -145,6 +155,14 @@ class World:
         used = min(total, self.sp_hourly_usage(day) * 24)
         return {"total": total, "used": used, "unused": total - used}
 
+    @staticmethod
+    def uptime(inst: dict, day: date) -> float:
+        """Share of the day an instance runs (1.0 unless a scenario schedules it)."""
+        u = inst.get("uptime")
+        if u and day >= _d(u["since"]):
+            return float(u["fraction"])
+        return 1.0
+
     def _instance_hours(self, day: date):
         """Yield (instance_type, hours) for every instance running on `day`, incl. history."""
         hist = self.raw["history"]["api_pre_migration"]
@@ -154,7 +172,7 @@ class World:
                 continue
             if inst.get("state") == "stopped" and day >= _d(inst["stopped_at"]):
                 continue
-            yield inst["type"], 24.0
+            yield inst["type"], 24.0 * self.uptime(inst, day)
         if day < migrated:
             for _ in range(hist["count"]):
                 yield hist["type"], 24.0
@@ -175,11 +193,12 @@ class World:
         hist = self.raw["history"]["api_pre_migration"]
         migrated = _d(hist["until"])
 
-        def compute(rid, itype, tags):
-            od = P["ec2_hourly"][itype] * 24
+        def compute(rid, itype, tags, up=1.0):
+            hours = 24 if up == 1.0 else 24 * up
+            od = P["ec2_hourly"][itype] * hours
             disc = sp_families.get(family(itype))
             amort = od * (1 - disc) if disc is not None else od
-            out.append(CostLine(day, SERVICE_EC2, f"BoxUsage:{itype}", rid, tags, od, amort, 24))
+            out.append(CostLine(day, SERVICE_EC2, f"BoxUsage:{itype}", rid, tags, od, amort, hours))
             if disc is not None:
                 out.append(CostLine(day, SERVICE_EC2, f"SavingsPlanNegation:BoxUsage:{itype}", rid, tags, -od, 0.0, 0))
 
@@ -188,7 +207,7 @@ class World:
                 continue
             if inst.get("state") == "stopped" and day >= _d(inst["stopped_at"]):
                 continue
-            compute(inst["id"], inst["type"], inst["tags"])
+            compute(inst["id"], inst["type"], inst["tags"], self.uptime(inst, day))
         if day < migrated:
             for k in range(hist["count"]):
                 compute(f"i-0retired000000{k:03d}", hist["type"], {"service": "api", "owner": "team-api", "env": "prod"})
@@ -197,8 +216,10 @@ class World:
         out.append(CostLine(day, SERVICE_SP, "SavingsPlanRecurringFee", self.raw["savings_plans"][0]["id"], {},
                             util["total"], util["unused"], 24))
 
-        for v in self.all_volumes():
+        for v in self.all_volumes(billing=True):
             if _d(v["created"]) > day:     # scenario volumes only bill from creation (base volumes all predate cost_start)
+                continue
+            if v.get("deleted") and _d(v["deleted"]) <= day:
                 continue
             gb = P["ebs_gb_month"][v["type"]] * v["size"] / 30
             ut = "EBS:VolumeUsage.piops" if v["type"] == "io1" else f"EBS:VolumeUsage.{v['type']}"
@@ -207,6 +228,15 @@ class World:
             if v["type"] == "io1":
                 iops = P["io1_iops_month"] * v["iops"] / 30
                 out.append(CostLine(day, SERVICE_EC2_OTHER, "EBS:VolumeP-IOPS.piops", v["id"], tags, iops, iops, v["iops"] / 30))
+            if v["type"] == "gp3":
+                extra_iops = max(0, v.get("iops", 3000) - 3000)
+                if extra_iops:
+                    c = P["gp3_iops_month"] * extra_iops / 30
+                    out.append(CostLine(day, SERVICE_EC2_OTHER, "EBS:VolumeP-IOPS.gp3", v["id"], tags, c, c, extra_iops / 30))
+                extra_tp = max(0, v.get("throughput", 125) - 125)
+                if extra_tp:
+                    c = P["gp3_throughput_month"] * extra_tp / 30
+                    out.append(CostLine(day, SERVICE_EC2_OTHER, "EBS:VolumeP-Throughput.gp3", v["id"], tags, c, c, extra_tp / 30))
 
         for s in self.snapshots():
             if _d(s["start"]) <= day:

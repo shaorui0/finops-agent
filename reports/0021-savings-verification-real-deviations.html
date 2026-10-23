@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0021-savings-verification-real-deviations</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0021-savings-verification-real-deviations</h1>
+</header>
+<h1 id="c0021-核实器喂真实偏差从-100-零结果到四类可解释的偏差">c0021
+核实器喂真实偏差：从 100% 零结果到四类可解释的偏差</h1>
+<h2 id="改了什么">改了什么</h2>
+<ul>
+<li>新场景链
+<code>testenv/scenarios/verify_base.yaml</code>、<code>verify_month1.yaml</code>、<code>verify_month2.yaml</code>（基础世界上的覆盖层，旧场景不动）。</li>
+<li><code>testenv/world.py</code> 新增三个可选字段：卷
+<code>deleted</code>、实例 <code>uptime</code>、gp3 卷 <code>iops</code>
+与 <code>throughput</code>。基础世界与既有场景的
+<code>World.lines</code> sha256 前后相同。</li>
+<li><code>finops_agent/verify_savings.py</code>：偏差按因分类，首月现金与次月现金实现率，场景
+claim，分层加「浪费/在用」，设计值对账，账单分解加「前期结转」。</li>
+<li><code>docs/SAVINGS_VERIFICATION.md</code> 与
+<code>reports/savings-verification.html</code>
+重新生成：场景链作主证据，原链作零假设对照。</li>
+</ul>
+<h2 id="为什么">为什么</h2>
+<p>c0018 的 4 条 resolved 全是
+100%，因为预测与账单出自同一张价格表。那只能证明流水线没有凭空制造偏差，不能证明核实器遇到偏差会给出正确的分类。维护者要的是「为什么对、怎么验证真的省钱了」，所以这次让预测和账单真的分开，并且每个偏差都能从世界文件里指到原因。</p>
+<h2 id="结果">结果</h2>
+<p>场景链共 5 条 resolved（含 1 条场景声明的 claim C01），预测
+$744.21，标准月实现 $140.60，实现率 18.9%。只看 agent 自己的 4 条
+finding，预测 $163.60，实现 $140.60，实现率
+85.9%。账单分解两期都精确闭合。</p>
+<p><strong>表 A1 偏差总表（预测与实现为标准月美元；首月现金率 =
+首月现金节省 / 预测折算到该月天数）</strong></p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+<col style="width: 10%" />
+</colgroup>
+<thead>
+<tr>
+<th>项</th>
+<th>finding</th>
+<th>区间</th>
+<th>预测</th>
+<th>实现</th>
+<th>实现率</th>
+<th>首月现金实现率</th>
+<th>次月现金实现率</th>
+<th>原因分类</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>（a）期中删除未挂载卷</td>
+<td>F03 <code>unattached_volume</code></td>
+<td>2026-09 到 2026-10</td>
+<td>$60.00</td>
+<td>$60.00</td>
+<td>100.0%</td>
+<td>67.7%</td>
+<td>100.0%</td>
+<td>按天折算（期中变更）</td>
+<td>兑现。标准月实现 100.0%，首月现金只有 67.7%（vol-0vfya000000000001
+在 2026-10 只计费 10/31 天（至 2026-10-10
+止）），因为资源在期中才删除；下一期现金实现率 100.0%。</td>
+</tr>
+<tr>
+<td>（b）dev 启停（SP 覆盖的 m5）</td>
+<td>C01 <code>schedule_dev_but_sp_covered</code></td>
+<td>2026-09 到 2026-10</td>
+<td>$580.61</td>
+<td>$0.00</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>0.0%</td>
+<td>承诺吸收</td>
+<td>现金未省：纸面 $580.61 中 $418.04 被 Savings Plan
+未用承诺吸收，$162.57 是预测按按需价、SP
+覆盖的实例按折扣价入账。不应计入节省，先处理承诺利用率再谈停机。</td>
+</tr>
+<tr>
+<td>（c）gp2 改 gp3，同期用量增长 30%</td>
+<td>F08 <code>gp2_to_gp3</code></td>
+<td>2026-09 到 2026-10</td>
+<td>$40.00</td>
+<td>$52.00</td>
+<td>130.0%</td>
+<td>130.0%</td>
+<td>130.0%</td>
+<td>用量漂移（对照组校正）</td>
+<td>节省真实，量被增长掩盖：朴素对比 -$8.00，校正后 $52.00（预测
+$40.00）。校正量来自对照组 g。</td>
+</tr>
+<tr>
+<td>（d）gp2 改 gp3，保留 IOPS 与吞吐</td>
+<td>F05 <code>gp2_to_gp3</code></td>
+<td>2026-10 到 2026-11</td>
+<td>$60.00</td>
+<td>$25.00</td>
+<td>41.7%</td>
+<td>41.7%</td>
+<td>无 N+2</td>
+<td>预测口径差</td>
+<td>实现 $25.00，是预测 $60.00 的 41.7%：差额由新增的 IOPS
+与吞吐用量类型解释。预测应改用含 IOPS 与吞吐的 gp3 总价。</td>
+</tr>
+<tr>
+<td>（e）释放闲置 EIP（对照，无偏差）</td>
+<td>F04 <code>idle_public_ip</code></td>
+<td>2026-09 到 2026-10</td>
+<td>$3.60</td>
+<td>$3.60</td>
+<td>100.0%</td>
+<td>100.0%</td>
+<td>100.0%</td>
+<td>无偏差</td>
+<td>兑现，实现率 100.0%。</td>
+</tr>
+<tr>
+<td>合计</td>
+<td>5 条</td>
+<td></td>
+<td>$744.21</td>
+<td>$140.60</td>
+<td>18.9%</td>
+<td>16.2%</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>四个偏差各有一条独立证据，不依赖「预测与账单对得上」：</p>
+<ul>
+<li>（a）首月现金 67.7% = 21/31，是删除日把当月 31 天切成 10 天计费与 21
+天不计费。标准月 100%，次月 100%。</li>
+<li>（b）C01 的 $580.61 一分没省。实例行的摊销少了
+$418.04，<code>sp-ec2-m5-01</code> 承诺行的摊销同额多出
+$418.04，两张账单合计不变。</li>
+<li>（c）两张发票得 -$8.00（改 gp3 反而更贵），对照组 g = 1.3000 校正后
+$52.00。</li>
+<li>（d）预测 $60.00，实现 $25.00，短缺 $35.00 恰好等于新增的
+<code>EBS:VolumeP-IOPS.gp3</code> $30.00 与
+<code>EBS:VolumeP-Throughput.gp3</code> $5.00。</li>
+</ul>
+<p><strong>表 A18
+设计值对账：不看账单、只从世界规格与价格表算出应有的节省，对比核实器给出的数</strong></p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>项</th>
+<th>设计值</th>
+<th>核实器</th>
+<th>差</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>（a）首月现金 = 日均 x 未计费天数</td>
+<td>$42.00</td>
+<td>$42.00</td>
+<td>$0.0000</td>
+</tr>
+<tr>
+<td>（b）账单口径节省 = 0（SP 覆盖，Unblended 相抵）</td>
+<td>$0.00</td>
+<td>$0.00</td>
+<td>$0.0000</td>
+</tr>
+<tr>
+<td>（b）摊销口径节省 = 按需价 x SP 折扣后 x 停机比例</td>
+<td>$418.04</td>
+<td>$418.04</td>
+<td>$0.0000</td>
+</tr>
+<tr>
+<td>（c）实现 = 反事实（成本 x 世界规格算出的增速）减 N+1 成本</td>
+<td>$52.00</td>
+<td>$52.00</td>
+<td>$0.0000</td>
+</tr>
+<tr>
+<td>（d）实现 = N 期价格表成本 减 N+1 期价格表成本</td>
+<td>$25.00</td>
+<td>$25.00</td>
+<td>$0.0000</td>
+</tr>
+<tr>
+<td>（e）实现 = 价格表上的 EIP 月费</td>
+<td>$3.60</td>
+<td>$3.60</td>
+<td>$0.0000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="前后对比">前后对比</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th></th>
+<th>c0018（原链）</th>
+<th>c0021（场景链）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>resolved 条数</td>
+<td>4</td>
+<td>5（含 1 条 claim）</td>
+</tr>
+<tr>
+<td>标准月实现率</td>
+<td>100.0%</td>
+<td>18.9%（仅 agent 85.9%）</td>
+</tr>
+<tr>
+<td>有偏差的条数</td>
+<td>0</td>
+<td>4</td>
+</tr>
+<tr>
+<td>偏差分类被真实数据考验</td>
+<td>否，只有合成单测</td>
+<td>是：按天折算、承诺吸收、用量漂移、预测口径差</td>
+</tr>
+<tr>
+<td>账单分解</td>
+<td>精确闭合</td>
+<td>精确闭合</td>
+</tr>
+</tbody>
+</table>
+<h2 id="验收证据">验收证据</h2>
+<p>见
+<code>openspec/changes/c0021-savings-verification-real-deviations/evidence.md</code>：31
+个单元测试（含五条端到端的偏差断言）通过；<code>scripts/verify_savings.sh</code>
+自检全部通过，两次生成逐字节相同；<code>make test</code>、<code>make check</code>
+通过；<code>openspec validate</code> 通过；录制的 LLM 调用 0 次。</p>
+<h2 id="局限">局限</h2>
+<p>数据仍是合成的，设计值对账证明核实器能还原世界里已知的因果，不证明真实账单的行为。C01
+是场景声明的纸面节省，不是 agent
+的输出。（c）里对照组与被处理卷的增速相同是场景设计的。详见文档 A7。</p>
+</body>
+</html>
