@@ -66,13 +66,13 @@
 | Context engineering（上限） | 项目级规则层 `rules/`（SOUL/USER/COMMUNICATION/WORKSPACE/axioms/skills），每次会话由 `CLAUDE.md` 加载；FinOps 领域模型作为 context | 规则层 ✅ c0003；领域模型计划 |
 | 权限与边界（下限） | 项目 hook `aws_readonly_guard.py` + AWS 侧 H1–H7 | hook ✅ c0001；AWS 侧待建 |
 | Spec 驱动 | 每个 change 一个 OpenSpec change，proposal/spec/tasks/evidence 留痕 | ✅ 从 c0001 起 |
-| 任务分解 / 计划 | 可见性链四环（D1b），每环先计划后执行 | 计划 |
-| 工具设计 | 确定性脚本拉数和计算，LLM 只做判断层 | 计划 |
-| 评估 | golden set + 指标 + `savings ≤ spend` 不变量（D2） | 计划 |
+| 任务分解 / 计划 | 可见性链四环（D1b），每环先计划后执行，产物落 `visibility.json` | ✅ c0005（第 ① 环暂为人工给定） |
+| 工具设计 | 确定性检测器做拉数和计算；跨源信号输出为 Lead 交给判断层 | 确定性层 ✅ c0005；判断层待建 |
+| 评估 | golden set（`testenv/world.yaml`，12 finding / 4 trap / 3 gap）+ 指标 + 不变量 | golden set ✅ c0004；不变量 ✅ c0005；打分待 c0006 |
 | 幻觉 / 注入防御 | D3 用例集；无出处数字检测 | 计划 |
 | 人工 gate / 回滚 | 写路径只出 plan，人工确认后执行（D4） | 计划 |
 | 验收 loop | 被动：hook / 单测 / CI；主动：cron 回归（D5） | 单测 ✅；CI、cron 待建 |
-| 可观测性（agent 自身） | 每次运行留 trace：调用了哪些工具、花了多少 token / API 费 | 待设计 |
+| 可观测性（agent 自身） | 每次运行留 `trace.jsonl`（每次调用的来源、操作、参数、耗时）；测试服务器可记调用日志 | API trace ✅ c0005；token 成本待判断层 |
 | 多 agent 编排 | 可见性链各环可分派 subagent，主 agent 只合并 | 待设计 |
 | 记忆 / 知识沉淀 | 公理 FA01–FA13 在 `rules/axioms/`；每 change 一份博客笔记；cron 与母版同步（D5） | 公理 ✅ c0003；笔记 ✅；cron 待建 |
 | 可展示性 | 每 change 一份 HTML 报告；主页阶段页（D8） | 报告 ✅；主页待建 |

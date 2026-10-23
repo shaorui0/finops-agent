@@ -18,6 +18,9 @@
 | 仓库自检工具 | `tools/` |
 | 合成测试账号与两个测试服务器 | `testenv/`（入口 `testenv/README.md`） |
 | 成本优化方法（agent 的作业顺序） | `docs/METHOD.md` |
+| 分析流水线代码 | `finops_agent/`（入口 `python3 -m finops_agent run`） |
+| 可见性需求（第 ① 环） | `config/visibility_requirements.yaml` |
+| 运行产物（不进 git） | `runs/<run_id>/` |
 
 ## 命名
 
