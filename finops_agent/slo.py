@@ -31,17 +31,17 @@ def compute_slis(result: dict, snap: dict, collector, run_date: date, state: dic
 
     waste = sum(f["monthly_savings_usd"] for f in result["findings"] if f["basis"] in BILLED)
     vals["waste_ratio"] = waste / spend if spend else 0.0
-    evidence["waste_ratio"] = f"${waste:,.2f} billed-basis savings open / ${spend:,.2f} spend"
+    evidence["waste_ratio"] = f"未处理的账单口径节省 ${waste:,.2f} / 花费 ${spend:,.2f}"
 
     a = result["attribution"]
     vals["attribution_coverage"] = 1 - a["untagged_share"]
-    evidence["attribution_coverage"] = f"${a['untagged_usd']:,.2f} of ${a['total_usd']:,.2f} has no owner tag"
+    evidence["attribution_coverage"] = f"${a['total_usd']:,.2f} 中有 ${a['untagged_usd']:,.2f} 没有 owner tag"
 
     sp = snap.get("sp_utilization") or []
     if sp:
         u = sp[-1]["Utilization"]
         vals["commitment_utilization"] = float(u["UtilizationPercentage"]) / 100
-        evidence["commitment_utilization"] = f"{u['UtilizationPercentage']}% in {sp[-1]['TimePeriod']['Start'][:7]}, ${float(u['UnusedCommitment']):,.2f} unused"
+        evidence["commitment_utilization"] = f"{sp[-1]['TimePeriod']['Start'][:7]} 利用率 {u['UtilizationPercentage']}%，${float(u['UnusedCommitment']):,.2f} 未用"
 
     live = {v["VolumeId"] for v in snap["volumes"]}
     ages = [(_age_days(v["CreateTime"], run_date), v["VolumeId"]) for v in snap["volumes"] if v["State"] == "available"]
@@ -50,16 +50,13 @@ def compute_slis(result: dict, snap: dict, collector, run_date: date, state: dic
     if ages:
         age, rid = max(ages)
         vals["orphan_max_age_days"] = age
-        evidence["orphan_max_age_days"] = f"oldest orphan {rid}, {age} days"
+        evidence["orphan_max_age_days"] = f"最老的孤儿 {rid}，{age} 天"
 
-    starts = []
-    for l in result["leads"]:
-        if "starting " in l["signal"]:
-            starts.append((_age_days(l["signal"].rsplit("starting ", 1)[1], run_date), l["signal"]))
+    starts = [(_age_days(l["since"], run_date), l["signal"]) for l in result["leads"] if l.get("since")]
     if starts:
         lag, sig = max(starts)
         vals["anomaly_time_to_detect_days"] = lag
-        evidence["anomaly_time_to_detect_days"] = f"{sig}; first reported by this run, {lag} days later"
+        evidence["anomaly_time_to_detect_days"] = f"{sig}；本次运行首次报出，晚了 {lag} 天"
 
     if collector is not None:
         at = f"{run_date.isoformat()}T00:00:00Z"
@@ -71,11 +68,11 @@ def compute_slis(result: dict, snap: dict, collector, run_date: date, state: dic
         if ratios:
             job, worst = min(ratios.items(), key=lambda x: x[1])
             vals["useful_work_ratio"] = worst
-            evidence["useful_work_ratio"] = f"worst fleet {job}: {worst:.1%} of jobs succeeded in the last day"
+            evidence["useful_work_ratio"] = f"最差的 fleet {job}：最近一天 {worst:.1%} 的 job 成功"
 
     gaps = result["visibility"]["gaps"]
     vals["visibility_coverage"] = sum(g["status"] == "covered" for g in gaps) / len(gaps) if gaps else 1.0
-    evidence["visibility_coverage"] = ", ".join(f"{g['sli']}={g['status']}" for g in gaps if g["status"] != "covered") or "all covered"
+    evidence["visibility_coverage"] = ", ".join(f"{g['sli']}={g['status']}" for g in gaps if g["status"] != "covered") or "全部覆盖"
 
     if state:
         first_seen = state.get("first_seen", {})
@@ -83,7 +80,7 @@ def compute_slis(result: dict, snap: dict, collector, run_date: date, state: dic
         if open_ages:
             age, fid = max(open_ages)
             vals["remediation_age_days"] = age
-            evidence["remediation_age_days"] = f"{fid} open for {age} days"
+            evidence["remediation_age_days"] = f"{fid} 已持续 {age} 天未处理"
     return {"values": vals, "evidence": evidence, "spend": spend, "waste": waste}
 
 
@@ -155,7 +152,7 @@ def to_prometheus(rows: list[dict], diff: dict, run_id: str, ts: float) -> str:
 def fmt(value, unit: str) -> str:
     if value is None:
         return "—"
-    return f"{value:.1%}" if unit == "ratio" else f"{value:g} {unit}"
+    return f"{value:.1%}" if unit == "ratio" else f"{value:g} 天"
 
 
 def load_cfg(path: Path) -> dict:

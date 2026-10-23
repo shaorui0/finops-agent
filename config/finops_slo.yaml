@@ -7,50 +7,50 @@
 slos:
   - id: waste_ratio
     unit: ratio
-    what: open, evidenced waste (billed basis) as a share of spend
+    what: 已有证据、尚未处理的浪费（账单口径）占花费的比例
     op: "<="
     target: 0.05
     budget: true            # the monthly waste budget is target x spend
     cadence: daily
   - id: attribution_coverage
     unit: ratio
-    what: share of spend that carries an owner tag
+    what: 带 owner tag 的花费占比
     op: ">="
     target: 0.90
     cadence: weekly
   - id: commitment_utilization
     unit: ratio
-    what: Savings Plan utilization over the period
+    what: 本周期 Savings Plan 利用率
     op: ">="
     target: 0.90
     cadence: monthly
   - id: orphan_max_age_days
     unit: days
-    what: age of the oldest orphaned resource (unattached volume, snapshot of a deleted volume)
+    what: 最老的孤儿资源（未挂载卷、已删卷的快照）存在天数
     op: "<="
     target: 14
     cadence: weekly
   - id: anomaly_time_to_detect_days
     unit: days
-    what: days between the start of a cost anomaly and the run that first reported it
+    what: 成本异常开始到第一次被报出之间的天数
     op: "<="
     target: 1
     cadence: daily
   - id: useful_work_ratio
     unit: ratio
-    what: successful work / attempted work for fleets that report job outcomes
+    what: 上报 job 结果的 fleet 中，成功的工作 / 尝试的工作
     op: ">="
     target: 0.95
     cadence: daily
   - id: visibility_coverage
     unit: ratio
-    what: share of required visibility SLIs that are fully covered by metrics
+    what: 可见性需求中被指标完全覆盖的比例
     op: ">="
     target: 1.0
     cadence: weekly
   - id: remediation_age_days
     unit: days
-    what: age of the oldest finding still open across runs
+    what: 跨运行仍未关闭的最老发现的天数
     op: "<="
     target: 30
     cadence: weekly

@@ -48,6 +48,7 @@ class Lead:
     method_step: str
     evidence: list
     questions: list = field(default_factory=list)
+    since: str | None = None   # first day of the anomaly, when the signal has one
 
     def to_dict(self):
         d = asdict(self)
@@ -107,7 +108,7 @@ class Analyzer:
         other = svc.get("EC2 - Other", 0)
         if other > compute:
             self.ranking["surprises"].append(
-                f"EC2 - Other (${other:,.0f}) is larger than EC2 compute (${compute:,.0f}): storage, NAT and data transfer dominate")
+                f"EC2 - Other（${other:,.0f}）比 EC2 计算（${compute:,.0f}）还大：存储、NAT 和数据传输占了大头")
 
     # ---- M1 -----------------------------------------------------------------
     def attribution(self):
@@ -137,11 +138,11 @@ class Analyzer:
             if members_service and t.get("service") not in members_service:
                 self.findings.append(Finding(
                     self._id(), "misattributed_tags", "M1_visibility_attribution",
-                    f"{inst['InstanceId']} is tagged service={t.get('service')} but launches from the template used by {', '.join(asg_using)} ({', '.join(sorted(members_service))})",
+                    f"{inst['InstanceId']} 的 tag 是 service={t.get('service')}，但它用的启动模板属于 {'、'.join(asg_using)}（{'、'.join(sorted(members_service))}）",
                     [inst["InstanceId"]],
-                    ["instance tags name a service", "its launch template belongs to a different fleet", "cost is attributed to the wrong owner"],
+                    ["实例 tag 写的是一个服务", "它的启动模板属于另一个 fleet", "成本被归到了错误的 owner"],
                     [Evidence("ec2", f"tags service={t.get('service')} owner={t.get('owner')}", "DescribeInstances"),
-                     Evidence("ec2", f"launch template {lt} is used by {asg_using}", "DescribeAutoScalingGroups")],
+                     Evidence("ec2", f"启动模板 {lt} 被 {asg_using} 使用", "DescribeAutoScalingGroups")],
                     0.0, "none", self.monthly(inst["InstanceId"]), "tag_vs_launch_template"))
 
     # ---- M3 -----------------------------------------------------------------
@@ -150,7 +151,7 @@ class Analyzer:
             if v["State"] == "available":
                 m = self.monthly(v["VolumeId"])
                 self.findings.append(Finding(
-                    self._id(), "unattached_volume", "M3_delete", f"{v['Size']} GB {v['VolumeType']} volume {v['VolumeId']} is not attached",
+                    self._id(), "unattached_volume", "M3_delete", f"{v['Size']} GB {v['VolumeType']} 卷 {v['VolumeId']} 未挂载",
                     [v["VolumeId"]], ["state=available"],
                     [Evidence("ec2", f"state=available, created {v['CreateTime']}", "DescribeVolumes"),
                      Evidence("cost_explorer", f"${m:,.2f}/period", "GetCostAndUsageWithResources")],
@@ -161,9 +162,9 @@ class Analyzer:
             if not a.get("AssociationId"):
                 m = self.monthly(a["AllocationId"])
                 self.findings.append(Finding(
-                    self._id(), "idle_public_ip", "M3_delete", f"Elastic IP {a['PublicIp']} is not associated",
-                    [a["AllocationId"]], ["no association"],
-                    [Evidence("ec2", "no AssociationId", "DescribeAddresses"),
+                    self._id(), "idle_public_ip", "M3_delete", f"Elastic IP {a['PublicIp']} 未关联任何资源",
+                    [a["AllocationId"]], ["没有关联"],
+                    [Evidence("ec2", "没有 AssociationId", "DescribeAddresses"),
                      Evidence("cost_explorer", f"${m:,.2f}/period", "GetCostAndUsageWithResources")],
                     m, "billed_14d_extrapolated", m, "idle_public_ips"))
 
@@ -181,12 +182,12 @@ class Analyzer:
                              for v in attached if v in vols)
             self.findings.append(Finding(
                 self._id(), "stopped_instance_storage", "M3_delete",
-                f"{t.get('Name', inst['InstanceId'])} has been stopped ({inst.get('StateTransitionReason', '')}); its volumes still bill",
+                f"{t.get('Name', inst['InstanceId'])} 已停机（{inst.get('StateTransitionReason', '')}），卷仍在计费",
                 [inst["InstanceId"], *attached],
-                ["instance compute cost is zero", "attached volumes carry the cost", "owner tag " + ("missing" if "owner" not in t else t["owner"])],
+                ["实例计算费用为零", "费用在挂载的卷上", "owner tag " + ("缺失" if "owner" not in t else t["owner"])],
                 [Evidence("ec2", f"state=stopped; {inst.get('StateTransitionReason', '')}", "DescribeInstances"),
                  Evidence("ec2", desc, "DescribeVolumes"),
-                 Evidence("cost_explorer", f"volumes ${cost:,.2f}/period", "GetCostAndUsageWithResources")],
+                 Evidence("cost_explorer", f"卷 ${cost:,.2f}/周期", "GetCostAndUsageWithResources")],
                 cost, "billed_14d_extrapolated", cost, "stopped_instance_storage"))
 
     def orphan_snapshots(self):
@@ -213,11 +214,11 @@ class Analyzer:
         kept = sorted(used_images & set(image_of.values()))
         self.findings.append(Finding(
             self._id(), "orphan_snapshots", "M3_delete",
-            f"{sum(len(v) for v in orphan.values())} snapshots of deleted volumes and {sum(len(v) for v in superseded.values())} snapshots of AMIs no template uses",
+            f"{sum(len(v) for v in orphan.values())} 个已删卷的快照，以及 {sum(len(v) for v in superseded.values())} 个没有任何模板在用的 AMI 的快照",
             sorted(orphan) + sorted(superseded),
-            ["source volume no longer exists", "AMI not referenced by any launch template or instance", f"kept: {', '.join(kept)} (in use)"],
-            [Evidence("ec2", f"orphans by source volume: { {k: len(v) for k, v in orphan.items()} }", "DescribeSnapshots + DescribeVolumes"),
-             Evidence("ec2", f"superseded AMIs: {sorted(superseded)}", "DescribeImages + DescribeLaunchTemplateVersions"),
+            ["源卷已不存在", "AMI 没有被任何启动模板或实例引用", f"保留：{'、'.join(kept)}（在用）"],
+            [Evidence("ec2", f"按源卷统计的孤儿快照：{ {k: len(v) for k, v in orphan.items()} }", "DescribeSnapshots + DescribeVolumes"),
+             Evidence("ec2", f"已被替代的 AMI：{sorted(superseded)}", "DescribeImages + DescribeLaunchTemplateVersions"),
              Evidence("cost_explorer", f"${cost:,.2f}/period", "GetCostAndUsageWithResources")],
             cost, "billed_14d_extrapolated", cost, "orphan_snapshots"))
 
@@ -227,8 +228,8 @@ class Analyzer:
             if v["VolumeType"] == "gp2" and v["State"] == "in-use":
                 m = self.monthly(v["VolumeId"])
                 self.findings.append(Finding(
-                    self._id(), "gp2_to_gp3", "M4_downsize_schedule", f"{v['Size']} GB gp2 volume {v['VolumeId']} can move to gp3",
-                    [v["VolumeId"]], ["volume type gp2", "gp3 is 20% cheaper per GB with equal or better baseline"],
+                    self._id(), "gp2_to_gp3", "M4_downsize_schedule", f"{v['Size']} GB gp2 卷 {v['VolumeId']} 可以换成 gp3",
+                    [v["VolumeId"]], ["卷类型 gp2", "gp3 每 GB 便宜 20%，基线性能相同或更好"],
                     [Evidence("ec2", f"type=gp2 size={v['Size']}", "DescribeVolumes"),
                      Evidence("cost_explorer", f"${m:,.2f}/period", "GetCostAndUsageWithResources")],
                     m * GP3_DISCOUNT, "list_price", m, "gp2_volumes"))
@@ -247,13 +248,13 @@ class Analyzer:
                 running[i["InstanceType"].split(".")[0]] += 1
         self.findings.append(Finding(
             self._id(), "savings_plan_underutilized", "M5_commitment",
-            f"Savings Plan utilization is {rows[-1][1]:.1f}% (${rows[-1][2]:,.0f} unused this period); do not buy more commitment",
+            f"Savings Plan 利用率 {rows[-1][1]:.1f}%（本周期 ${rows[-1][2]:,.0f} 未用），不要再买承诺",
             [p["savingsPlanId"] for p in plans],
-            ["utilization by month: " + ", ".join(f"{d[:7]} {u:.1f}%" for d, u, _ in rows),
-             f"plan families: {sorted(fams)}", f"running instances by family: {dict(running)}"],
-            [Evidence("cost_explorer", f"utilization {[(d[:7], u) for d, u, _ in rows]}", "GetSavingsPlansUtilization"),
-             Evidence("savingsplans", f"families {sorted(fams)}", "DescribeSavingsPlans"),
-             Evidence("ec2", f"running by family {dict(running)}", "DescribeInstances")],
+            ["按月利用率：" + "，".join(f"{d[:7]} {u:.1f}%" for d, u, _ in rows),
+             f"计划覆盖的机型族：{sorted(fams)}", f"运行中实例按机型族：{dict(running)}"],
+            [Evidence("cost_explorer", f"利用率 {[(d[:7], u) for d, u, _ in rows]}", "GetSavingsPlansUtilization"),
+             Evidence("savingsplans", f"机型族 {sorted(fams)}", "DescribeSavingsPlans"),
+             Evidence("ec2", f"运行中按机型族 {dict(running)}", "DescribeInstances")],
             0.0, "none", rows[-1][2], "savings_plan_utilization"))
 
     # ---- leads for the judgment layer --------------------------------------
@@ -270,24 +271,24 @@ class Analyzer:
             head, tail = sum(vals[:3]) / 3, sum(vals[-7:]) / 7
             if head > 0 and tail / head > 2:
                 jump = next(d for d, v in pts if v > head * 2)
-                self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{ut} rose {tail / head:.1f}x, starting {jump}", "M2_ranking",
-                                       [Evidence("cost_explorer", f"{ut}: first 3 days avg ${head:,.2f}/day, last 7 days ${tail:,.2f}/day", "GetCostAndUsage DAILY by USAGE_TYPE")],
-                                       ["what changed on that day?", "which workloads send this traffic?", "is the path itself avoidable?"]))
+                self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{ut} 涨到 {tail / head:.1f} 倍，从 {jump} 开始", "M2_ranking",
+                                       [Evidence("cost_explorer", f"{ut}：前 3 天平均 ${head:,.2f}/天，最近 7 天 ${tail:,.2f}/天", "GetCostAndUsage DAILY by USAGE_TYPE")],
+                                       ["那一天发生了什么变化？", "哪些工作负载在发这些流量？", "这条路径本身能不能避开？"], since=jump))
         for g in self.s["cost_by_usage_type"][0]["Groups"]:
             svc, ut = g["Keys"]
             if "DataTransfer-Regional" in ut and _amt(g["Metrics"]) > 50:
-                self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{ut} costs ${_amt(g['Metrics']):,.0f} with no resource id", "M6_architecture",
-                                       [Evidence("cost_explorer", f"{svc} / {ut} ${_amt(g['Metrics']):,.2f}, quantity {float(g['Metrics']['UsageQuantity']['Amount']):,.0f} GB", "GetCostAndUsage by USAGE_TYPE")],
-                                       ["which instance pairs sit in different AZs and talk to each other?", "is there a per-flow metric?"]))
+                self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{ut} 花费 ${_amt(g['Metrics']):,.0f}，没有资源 ID", "M6_architecture",
+                                       [Evidence("cost_explorer", f"{svc} / {ut} ${_amt(g['Metrics']):,.2f}，用量 {float(g['Metrics']['UsageQuantity']['Amount']):,.0f} GB", "GetCostAndUsage by USAGE_TYPE")],
+                                       ["哪些实例对分处不同 AZ 并且互相通信？", "有没有按流量对的指标？"]))
         busy = defaultdict(list)
         for i in self.s["instances"]:
             t = _tags(i)
             if i["State"]["Name"] == "running" and t.get("aws:autoscaling:groupName"):
                 busy[t["aws:autoscaling:groupName"]].append(i["InstanceId"])
         for asg, ids in busy.items():
-            self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{asg}: {len(ids)} instances; is the fleet doing useful work?", "M3_delete",
-                                   [Evidence("ec2", f"{len(ids)} running instances", "DescribeAutoScalingGroups")],
-                                   ["CPU says busy, but what is the success rate of the work?"]))
+            self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{asg}：{len(ids)} 台实例，这个 fleet 在干有用的活吗？", "M3_delete",
+                                   [Evidence("ec2", f"{len(ids)} 台运行中实例", "DescribeAutoScalingGroups")],
+                                   ["CPU 说它很忙，可工作的成功率是多少？"]))
 
 
 def check_invariants(findings: list[Finding]) -> list[str]:
@@ -295,9 +296,9 @@ def check_invariants(findings: list[Finding]) -> list[str]:
     out = []
     for f in findings:
         if f.resource_spend_usd is not None and f.monthly_savings_usd > f.resource_spend_usd + 0.01:
-            out.append(f"{f.id}: savings ${f.monthly_savings_usd:,.2f} exceed resource spend ${f.resource_spend_usd:,.2f}")
+            out.append(f"{f.id}：节省 ${f.monthly_savings_usd:,.2f} 超过资源花费 ${f.resource_spend_usd:,.2f}")
         if f.monthly_savings_usd > 0 and f.basis == "none":
-            out.append(f"{f.id}: non-zero savings without a basis")
+            out.append(f"{f.id}：节省不为零但没有口径")
         if not f.evidence:
-            out.append(f"{f.id}: no evidence")
+            out.append(f"{f.id}：没有证据")
     return out

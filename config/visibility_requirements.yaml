@@ -1,46 +1,45 @@
-# Ring 1 of the visibility chain: what we need to see, derived from cost goals.
-# Written before looking at any existing metric (FA12). Each SLI names the cost
-# decision it protects. `need` lists the signals; `scope` says which resources
-# must be covered for the SLI to be computable.
+# 可见性链第 ① 环：从成本目标反推需要看到什么。
+# 在查看任何现有指标之前写成（FA12）。每个 SLI 写明它保护的成本决策；
+# `need` 列出所需信号；`scope` 说明哪些资源必须被覆盖，这个 SLI 才算得出来。
 #
-# scope values:
-#   running_instances      every running EC2 instance
-#   services:<a,b>         the listed services (job label)
-#   nat_gateways           every NAT gateway
+# scope 取值：
+#   running_instances      所有运行中的 EC2 实例
+#   services:<a,b>         列出的服务（job 标签）
+#   nat_gateways           所有 NAT 网关
 
 slis:
   - id: idle_detection
-    decision: delete or stop resources nobody uses (M3)
+    decision: 删除或停掉没人用的资源（M3）
     need:
-      - {signal: cpu utilization per instance, name: 'aws_ec2_cpuutilization_average', scope: running_instances}
-      - {signal: network traffic per instance, name: 'aws_ec2_network_out_.*', scope: running_instances}
+      - {signal: 每实例 CPU 利用率, name: 'aws_ec2_cpuutilization_average', scope: running_instances}
+      - {signal: 每实例网络流量, name: 'aws_ec2_network_out_.*', scope: running_instances}
   - id: useful_work_ratio
-    decision: a busy fleet can still be waste; compare work done with work attempted (M3)
+    decision: 忙碌的 fleet 也可能是浪费；比较完成的工作与尝试的工作（M3）
     need:
-      - {signal: job outcomes by status, name: '.*_jobs_total', scope: 'services:ingest-worker,etl-runner'}
+      - {signal: 按状态的 job 结果, name: '.*_jobs_total', scope: 'services:ingest-worker,etl-runner'}
   - id: rightsizing_headroom
-    decision: downsize only with headroom known on every resource dimension (M4)
+    decision: 每个资源维度的余量都已知，才降配（M4）
     need:
-      - {signal: cpu utilization per instance, name: 'aws_ec2_cpuutilization_average', scope: running_instances}
-      - {signal: memory utilization per instance, name: '.*mem.*', scope: running_instances}
+      - {signal: 每实例 CPU 利用率, name: 'aws_ec2_cpuutilization_average', scope: running_instances}
+      - {signal: 每实例内存利用率, name: '.*mem.*', scope: running_instances}
   - id: latency_slo_guard
-    decision: capacity that protects a latency SLO is not waste (M4, tidal trap)
+    decision: 保护延迟 SLO 的容量不是浪费（M4，潮汐陷阱）
     need:
-      - {signal: p99 latency per service, name: 'http_request_duration.*', scope: 'services:web,api'}
+      - {signal: 每服务 p99 延迟, name: 'http_request_duration.*', scope: 'services:web,api'}
   - id: schedule_detection
-    decision: schedule environments that are idle outside known hours (M4)
+    decision: 已知时段外空闲的环境按时段调度（M4）
     need:
-      - {signal: request rate per service, name: 'http_requests_total', scope: 'services:web,api,web-dev'}
+      - {signal: 每服务请求速率, name: 'http_requests_total', scope: 'services:web,api,web-dev'}
   - id: unit_cost_per_job
-    decision: cost per unit of work, to judge whether spend is worth it (M2-M6)
+    decision: 单位工作的成本，用来判断花得值不值（M2–M6）
     need:
-      - {signal: job count, name: '.*_jobs_total', scope: 'services:ingest-worker'}
-      - {signal: work volume (bytes or records processed), name: '.*_(bytes|records)_processed_total', scope: 'services:ingest-worker'}
+      - {signal: job 数, name: '.*_jobs_total', scope: 'services:ingest-worker'}
+      - {signal: 工作量（处理的字节或记录数）, name: '.*_(bytes|records)_processed_total', scope: 'services:ingest-worker'}
   - id: cross_az_attribution
-    decision: attribute regional data transfer to the service pairs causing it (M6)
+    decision: 把跨 AZ 数据传输归到造成它的服务对上（M6）
     need:
-      - {signal: bytes between a service and its peers, name: '.*_client_bytes_total', scope: 'services:api,web,ingest-worker'}
+      - {signal: 服务与其对端之间的字节数, name: '.*_client_bytes_total', scope: 'services:api,web,ingest-worker'}
   - id: nat_attribution
-    decision: attribute NAT processing bytes to the workloads sending them (M6)
+    decision: 把 NAT 处理字节归到发出它们的工作负载上（M6）
     need:
-      - {signal: NAT bytes per gateway, name: 'aws_natgateway_bytes_.*', scope: nat_gateways}
+      - {signal: 每网关 NAT 字节数, name: 'aws_natgateway_bytes_.*', scope: nat_gateways}

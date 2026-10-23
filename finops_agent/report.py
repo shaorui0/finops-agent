@@ -7,13 +7,13 @@ from html import escape
 from finops_agent import slo
 
 STEPS = [
-    ("M0", "以终为始", "Cost goals and the SLIs that measure them"),
-    ("M1_visibility_attribution", "可见性与归因", "Can every dollar be traced to a service, owner and environment?"),
-    ("M2_ranking", "二八排序", "Where the money goes, and what is larger than expected"),
-    ("M3_delete", "清理", "Things nobody uses, or that do useless work"),
-    ("M4_downsize_schedule", "降配与调度", "Long-term over-provisioning and idle schedules"),
-    ("M5_commitment", "承诺折扣", "Savings Plans / RIs, after delete and downsize"),
-    ("M6_architecture", "架构级", "Change usage or duration, not unit price"),
+    ("M0", "以终为始", "成本目标，以及衡量它们的 SLI"),
+    ("M1_visibility_attribution", "可见性与归因", "每一块钱能否落到服务、owner 和环境上？"),
+    ("M2_ranking", "二八排序", "钱花在哪，哪些比预期大"),
+    ("M3_delete", "清理", "没人用的，或在做无用功的"),
+    ("M4_downsize_schedule", "降配与调度", "长期过配与可调度的空闲时段"),
+    ("M5_commitment", "承诺折扣", "Savings Plan / RI，放在清理和降配之后"),
+    ("M6_architecture", "架构级", "改用量或时长，而不是单价"),
 ]
 
 CSS = """
@@ -42,80 +42,80 @@ def render(run: dict) -> str:
     for x in f:
         by_basis[x["basis"]] += x["monthly_savings_usd"]
     h = [f"<!doctype html><html lang=zh><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
-         f"<title>FinOps run {escape(run['run_id'])}</title><style>{CSS}</style></head><body><main>"]
-    h.append(f"<h1>FinOps run <code>{escape(run['run_id'])}</code></h1>"
-             f"<div class=muted>Account {escape(run['account'])} · period {run['period']['Start']} → {run['period']['End']} · "
-             f"{len(run['trace'])} read-only API calls</div>")
+         f"<title>FinOps 运行 {escape(run['run_id'])}</title><style>{CSS}</style></head><body><main>"]
+    h.append(f"<h1>FinOps 运行 <code>{escape(run['run_id'])}</code></h1>"
+             f"<div class=muted>账号 {escape(run['account'])} · 周期 {run['period']['Start']} → {run['period']['End']} · "
+             f"{len(run['trace'])} 次只读 API 调用</div>")
     inv = run["invariants"]
     h.append("<div class=kpis>"
-             f"<div class=kpi><span class=muted>Spend (amortized)</span><b>{_usd(total)}</b></div>"
-             f"<div class=kpi><span class=muted>Findings</span><b>{len(f)}</b></div>"
-             f"<div class=kpi><span class=muted>Savings, billed basis</span><b>{_usd(sum(v for k, v in by_basis.items() if k.startswith('billed')))}</b></div>"
-             f"<div class=kpi><span class=muted>Savings, list-price basis</span><b>{_usd(by_basis.get('list_price', 0))}</b></div>"
-             f"<div class=kpi><span class=muted>Leads for judgment</span><b>{len(run['leads'])}</b></div>"
-             f"<div class=kpi><span class=muted>Invariants</span><b class={'covered' if not inv else 'missing'}>{'pass' if not inv else f'{len(inv)} violated'}</b></div>"
+             f"<div class=kpi><span class=muted>花费（amortized）</span><b>{_usd(total)}</b></div>"
+             f"<div class=kpi><span class=muted>发现</span><b>{len(f)}</b></div>"
+             f"<div class=kpi><span class=muted>节省（账单口径）</span><b>{_usd(sum(v for k, v in by_basis.items() if k.startswith('billed')))}</b></div>"
+             f"<div class=kpi><span class=muted>节省（牌价口径）</span><b>{_usd(by_basis.get('list_price', 0))}</b></div>"
+             f"<div class=kpi><span class=muted>待判断的线索</span><b>{len(run['leads'])}</b></div>"
+             f"<div class=kpi><span class=muted>不变量</span><b class={'covered' if not inv else 'missing'}>{'通过' if not inv else f'{len(inv)} 条违反'}</b></div>"
              "</div>")
     if run.get("slo"):
         so = run["slo"]
         d = so["diff"]
-        h.append("<h2>FinOps SLO <span class=muted>· is cost health holding, or rotting?</span></h2>")
-        h.append(f"<p>Since the previous run ({so['previous_runs']} earlier runs): "
-                 f"<b>{len(d['new'])}</b> new · <b>{len(d['persisting'])}</b> persisting · <b>{len(d['resolved'])}</b> resolved · "
-                 f"<b class={'missing' if d['regressed'] else 'covered'}>{len(d['regressed'])}</b> regressed</p>")
-        h.append("<div class=wrap><table><tr><th>SLI</th><th class=num>Value</th><th>Target</th><th>Status</th><th>Cadence</th><th>Evidence</th></tr>")
+        h.append("<h2>FinOps SLO <span class=muted>· 成本健康在保持，还是在腐烂？</span></h2>")
+        h.append(f"<p>与上一次运行相比（此前共 {so['previous_runs']} 次运行）："
+                 f"新增 <b>{len(d['new'])}</b> · 持续 <b>{len(d['persisting'])}</b> · 已解决 <b>{len(d['resolved'])}</b> · "
+                 f"复发 <b class={'missing' if d['regressed'] else 'covered'}>{len(d['regressed'])}</b></p>")
+        h.append("<div class=wrap><table><tr><th>SLI</th><th class=num>值</th><th>目标</th><th>状态</th><th>节奏</th><th>证据</th></tr>")
         for r in so["rows"]:
             v = slo.fmt(r["value"], r["unit"])
             t = f"{r['op']} {slo.fmt(r['target'], r['unit'])}"
             cls = {"ok": "covered", "violated": "missing"}.get(r["status"], "partial")
-            extra = f" · budget used {r['budget_used']:.0%} of {_usd(r['budget_usd'])}" if r.get("budget_usd") else ""
+            extra = f" · 已用预算 {r['budget_used']:.0%}（预算 {_usd(r['budget_usd'])}）" if r.get("budget_usd") else ""
             h.append(f"<tr><td><b>{escape(r['id'])}</b><div class=muted>{escape(r['what'])}</div></td><td class=num>{v}</td><td>{escape(t)}</td>"
                      f"<td class={cls}>{r['status']}</td><td>{r['cadence']}</td><td>{escape(r['evidence'])}{extra}</td></tr>")
         h.append("</table></div>")
     if inv:
-        h.append("<div class=card><h3 class=missing>Invariant violations</h3><ul>" + "".join(f"<li>{escape(v)}</li>" for v in inv) + "</ul></div>")
+        h.append("<div class=card><h3 class=missing>违反不变量</h3><ul>" + "".join(f"<li>{escape(v)}</li>" for v in inv) + "</ul></div>")
 
     for key, zh, en in STEPS:
         h.append(f"<h2>{key.split('_')[0]} {zh} <span class=muted>· {en}</span></h2>")
         if key == "M0":
             gaps = run["visibility"]["gaps"]
             c = Counter(g["status"] for g in gaps)
-            h.append(f"<p>{len(gaps)} SLIs required by the cost goals: "
-                     f"<span class=covered>{c['covered']} covered</span>, <span class=partial>{c['partial']} partial</span>, "
-                     f"<span class=missing>{c['missing']} missing</span>. Details in the visibility chain below.</p>")
+            h.append(f"<p>成本目标需要 {len(gaps)} 个 SLI："
+                     f"<span class=covered>{c['covered']} 个已覆盖</span>，<span class=partial>{c['partial']} 个部分覆盖</span>，"
+                     f"<span class=missing>{c['missing']} 个缺失</span>。详见下方可见性链。</p>")
             continue
         if key == "M1_visibility_attribution":
             a = run["attribution"]
-            h.append(f"<p>Untagged spend (no <code>owner</code>): <b>{_usd(a['untagged_usd'])}</b> of {_usd(a['total_usd'])} "
-                     f"({a['untagged_share']:.0%}). Instances without owner: {', '.join(a['instances_without_owner']) or 'none'}.</p>")
+            h.append(f"<p>没有 <code>owner</code> tag 的花费：<b>{_usd(a['untagged_usd'])}</b> / {_usd(a['total_usd'])} "
+                     f"（{a['untagged_share']:.0%}）。没有 owner 的实例：{'、'.join(a['instances_without_owner']) or '无'}。</p>")
         if key == "M2_ranking":
             r = run["ranking"]
-            h.append("<div class=wrap><table><tr><th>Service</th><th class=num>Amortized</th><th class=num>Share</th></tr>" +
+            h.append("<div class=wrap><table><tr><th>服务</th><th class=num>Amortized</th><th class=num>占比</th></tr>" +
                      "".join(f"<tr><td>{escape(s)}</td><td class=num>{_usd(v)}</td><td class=num>{v / total:.0%}</td></tr>" for s, v in r["by_service"]) +
                      "</table></div>")
             for s in r["surprises"]:
-                h.append(f"<div class=card><b>Surprise:</b> {escape(s)}</div>")
+                h.append(f"<div class=card><b>意外项：</b>{escape(s)}</div>")
         step_f = [x for x in f if x["method_step"] == key]
         step_l = [x for x in run["leads"] if x["method_step"] == key]
         for x in step_f:
             h.append("<div class=card>"
                      f"<h3>{escape(x['id'])} · {escape(x['title'])}</h3>"
-                     f"<div class=muted>{escape(x['type'])} · savings <b>{_usd(x['monthly_savings_usd'])}</b> "
+                     f"<div class=muted>{escape(x['type'])} · 节省 <b>{_usd(x['monthly_savings_usd'])}</b> "
                      f"<span class=tag>{escape(x['basis'])}</span>"
-                     + (f" · resource spend {_usd(x['resource_spend_usd'])}" if x.get('resource_spend_usd') is not None else "") + "</div>"
+                     + (f" · 资源花费 {_usd(x['resource_spend_usd'])}" if x.get('resource_spend_usd') is not None else "") + "</div>"
                      "<div class=chain>" + "".join(f"<span>{escape(hp)}</span>" for hp in x["hops"]) + "</div>"
-                     "<div class=wrap><table><tr><th>Source</th><th>Evidence</th><th>From</th></tr>" +
+                     "<div class=wrap><table><tr><th>来源</th><th>证据</th><th>出处</th></tr>" +
                      "".join(f"<tr><td>{escape(e['source'])}</td><td>{escape(e['what'])}</td><td><code>{escape(e['ref'])}</code></td></tr>" for e in x["evidence"]) +
                      "</table></div></div>")
         for l in step_l:
-            h.append(f"<div class=card><h3>{escape(l['id'])} · lead: {escape(l['signal'])}</h3>"
-                     f"<div class=muted>Needs cross-source judgment before it becomes a finding.</div><ul>" +
+            h.append(f"<div class=card><h3>{escape(l['id'])} · 线索：{escape(l['signal'])}</h3>"
+                     f"<div class=muted>需要跨源判断，才能成为一条发现。</div><ul>" +
                      "".join(f"<li>{escape(q)}</li>" for q in l["questions"]) + "</ul>" +
                      "".join(f"<div class=muted><code>{escape(e['ref'])}</code> {escape(e['what'])}</div>" for e in l["evidence"]) + "</div>")
         if not step_f and not step_l and key not in ("M1_visibility_attribution", "M2_ranking"):
-            h.append("<p class=muted>Nothing found at this step by the deterministic detectors.</p>")
+            h.append("<p class=muted>确定性检测器在这一步没有发现。</p>")
 
-    h.append("<h2>Visibility chain <span class=muted>· ① requirements → ② plan → ③ search → ④ gaps</span></h2><div class=wrap><table>"
-             "<tr><th>SLI</th><th>Decision it protects</th><th>Signal</th><th>Status</th><th>Coverage</th><th>Metrics found</th></tr>")
+    h.append("<h2>可见性链 <span class=muted>· ① 需求 → ② 计划 → ③ 搜索 → ④ 缺口</span></h2><div class=wrap><table>"
+             "<tr><th>SLI</th><th>它保护的决策</th><th>信号</th><th>状态</th><th>覆盖</th><th>找到的指标</th></tr>")
     for g in run["visibility"]["gaps"]:
         for i, n in enumerate(g["needs"]):
             h.append("<tr>" + (f"<td rowspan={len(g['needs'])}><b>{escape(g['sli'])}</b></td><td rowspan={len(g['needs'])}>{escape(g['decision'])}</td>" if i == 0 else "") +
@@ -124,7 +124,7 @@ def render(run: dict) -> str:
     h.append("</table></div>")
 
     calls = Counter(f"{c['source']} {c['op']}" for c in run["trace"])
-    h.append("<h2>Run trace <span class=muted>· every call the agent made</span></h2><div class=wrap><table><tr><th>Call</th><th class=num>Count</th></tr>" +
+    h.append("<h2>运行留痕 <span class=muted>· agent 发出的每一次调用</span></h2><div class=wrap><table><tr><th>调用</th><th class=num>次数</th></tr>" +
              "".join(f"<tr><td><code>{escape(k)}</code></td><td class=num>{v}</td></tr>" for k, v in sorted(calls.items())) + "</table></div>")
     h.append("</main></body></html>")
     return "".join(h)
