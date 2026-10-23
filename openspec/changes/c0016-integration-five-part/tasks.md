@@ -16,4 +16,4 @@
 - [x] 4.2 python 检查 `runs/t7/plans.json`：每个节省大于 0 的 finding 有带 reversal_cost 与 rollback 的计划
 - [x] 4.3 `make rot-demo`：三次运行里 resolved、regressed、new 都至少 1 个
 - [x] 4.4 `make test`、`make check` 全绿
-- [x] 4.5 `reports/0016-demo-run.html` 浏览器检查五段式
+- [x] 4.5 `test_five_headings_per_card_equals_findings` 解析 report.html 数五段标题；`reports/0016-demo-run.html` 是同一次运行的报告

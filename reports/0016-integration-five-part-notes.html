@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0016-integration-five-part-notes</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0016-integration-five-part-notes</h1>
+</header>
+<ul>
+<li>五段式的 status/spec/diff 在 agent 运行时要「代码算」，不能抄 LLM
+的话。办法是按 evidence 的 source
+分流：观察类（cost_explorer、ec2、metrics）进
+status，<code>computed</code> 进 diff，<code>llm</code> 一律不进。判断层
+finding 的 hops 也是模型写的，所以 status 只用 evidence。</li>
+<li>判断层产出的 finding 在 remediate 里没有处理器，会静默进
+<code>skipped</code>。不改 remediate.py，在新模块里定义处理器再
+<code>setdefault</code> 注入它的 HANDLERS：同一个
+build_plans，覆盖面补齐。测试断言
+<code>skipped == []</code>，以后再加类型忘了写处理器会当场失败。</li>
+<li>owner 的坑：ASG 自己没有 tag，owner
+要从成员实例推；misattributed_tags 的 owner 是 tag
+里写的那个团队，恰好是错的那个。建议里要写「两边都通知」。</li>
+<li>预防表的告警名对 <code>finops.rules.yml</code> 做测试，和 c0014 的
+<code>alert:Name</code>
+做法一致。有控制但没有告警的类型照样要挂一个已有告警（如
+FinOpsRegression），不造不存在的名字。</li>
+<li>反直觉：加 <code>owner</code> 到 <code>Finding</code> 不会动
+cassette，因为 prompt 只由 <code>Lead</code> 渲染。验证办法就是 eval
+全部 replay 且不报 CassetteMissing，比读代码可靠。</li>
+<li>坑：<code>make rot-demo</code> 在 main
+上本来就是坏的。判断层合入后，next_month 世界的 prompt 没有
+cassette，回放直接抛 CassetteMissing。用 <code>FINOPS_NO_JUDGE=1</code>
+绕开，腐烂检测只靠确定性检测器，结果不变；真要带判断层演示，得有意识地录一次。</li>
+<li>macOS 的 <code>sed -i</code> 要带空串参数，改文件用 python
+更稳。</li>
+</ul>
+<p>PROGRESS_ROW: | c0016-integration-five-part | 10-24 | 每次运行写
+plans.json（含判断层 finding）与 fivepart.json，报告每个 finding 卡片是
+现状/期望/差异/处置/预防 五段，finding 带
+owner；<code>make rot-demo</code> 与新套件进 <code>make test</code> |
+status/spec/diff 按 evidence 的 source 分流，LLM 文本不进数字；remediate
+没有的类型在新模块注入处理器，测试断言 skipped 为空 | <a
+href="reports/0016-integration-five-part.html">报告</a> · <a
+href="notes/blog/0016-integration-five-part.md">笔记</a> |</p>
+</body>
+</html>
