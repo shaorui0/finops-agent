@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>finops-agent 需求分析</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">finops-agent 需求分析</h1>
+</header>
+<h1 id="需求分析finops-agent">需求分析：FinOps Agent</h1>
+<p>来源：语音 <code>2026-10-23_2311</code> / <code>2331</code> /
+<code>2335</code>（主），<code>1715</code> / <code>1758</code> /
+<code>1809</code>（FinOps
+模型补充），<code>2026-10-20_1206</code>（面试叙事）。原文在
+<code>context-infrastructure/contexts/daily_records/</code>，不进本仓库。</p>
+<h2 id="一句话">1. 一句话</h2>
+<p>做一个开源的 AWS FinOps Agent，用它作为「我是 Agent
+Engineer」的唯一旗舰证据：产品本身证明 FinOps 模型，构建过程（spec /
+change / eval / harness / context）证明 Agent 工程能力。FinOps
+是载体，真正要练和要展示的是 Harness Engineering（R15）。</p>
+<h2 id="需求拆解">2. 需求拆解</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>需求</th>
+<th>原话锚点</th>
+<th>归属</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>定位是 <strong>Agent Engineer / Agent Infra
+Engineer</strong>，不是”做 Agent
+应用开发”；面试”就面你一个东西”，必须能讲清楚真正的优点</td>
+<td>2311、2331 末尾</td>
+<td>叙事</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>FinOps 分层能力：可见性/归因（识别
+tag、owner，<strong>还要校验打得对不对</strong>）→ 明显浪费（闲置）→
+潜在浪费 → 可优化 → 自动打平到目标 spec</td>
+<td>1809、2335</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>浪费判据要分<strong>潮汐短期 vs
+长期</strong>：短期冲高是正常弹性，长期不降才算浪费；成本告警本身是一套
+SLA 体系，水位对 SLO 负责</td>
+<td>1809、1758</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>治理顺序：先删 → 再降配 →
+最后买承诺（SP/RI）；单位成本/对账（每次查询多少钱）</td>
+<td>1715、1758</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R5</td>
+<td><strong>第一轮只做分析</strong>，结果交给我，再往下做</td>
+<td>2335</td>
+<td>本项目，M1</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>体现 LLM 能力边界与风险：幻觉、prompt 注入，三层——是什么 / 怎么触发
+/ 系统上如何避免；Context 定上限，Harness 定下限</td>
+<td>2331、1758</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>评估与迭代：用什么指标、优化什么、为什么优化、结果是否可验证可复用；“不是去判断，而是去验证”</td>
+<td>2311、2331</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R8</td>
+<td>过程即交付：每个 change 走 OpenSpec + 一个 commit，有验收 loop（被动
+loop + 主动 loop），不能”只有开发没有测试”</td>
+<td>2335</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R9</td>
+<td>每个 change 产出：本地 HTML 报告（<strong>不是</strong> Claude
+artifact）+
+博客想法（只整理核心内容，<strong>不做写作优化</strong>）</td>
+<td>2335</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>cron 定期把项目的公理/规则蒸馏出来，形成本项目自己的 context
+层（context、rules：axioms / skills / communication / soul / user /
+workspace），以 context-infrastructure 为母版</td>
+<td>2335</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R11</td>
+<td>发到 GitHub，标准是”完完整整真正好的开源项目”</td>
+<td>2335</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R12</td>
+<td>该做成 skill 的都做成 skill，包括”每个 change 一个
+commit”这个动作本身</td>
+<td>2335 末尾</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R13</td>
+<td>prompt prehook：每次发 prompt 时，按我的认知/公理去校验或优化
+prompt</td>
+<td>2335 开头</td>
+<td><strong>context-infrastructure，不在本仓库</strong></td>
+</tr>
+<tr>
+<td>R14</td>
+<td>每次验收结果都要告诉我（在 main agent 里汇报）；给我看的 markdown
+一律同时出 HTML</td>
+<td>2341</td>
+<td>本项目，进 change-loop</td>
+</tr>
+<tr>
+<td>R15</td>
+<td><strong>项目目的是学 Harness Engineering 最佳实践、体现对 AI Agent
+的掌控力</strong>，不是为做而做，也不只为解决成本问题。取舍冲突时，过程的可展示性优先于功能广度</td>
+<td>2341</td>
+<td>全局原则</td>
+</tr>
+</tbody>
+</table>
+<h2 id="交付物">3. 交付物</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>ID</th>
+<th>交付物</th>
+<th>验收标准（可验证）</th>
+<th>对应需求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D0</td>
+<td>仓库骨架 + 本文档 + change-loop skill（本次 init commit）</td>
+<td><code>openspec list</code>
+可用；<code>.claude/skills/finops-change-loop</code> 存在；init 有 HTML
+报告 + 博客笔记</td>
+<td>R8 R9 R12</td>
+</tr>
+<tr>
+<td>D1</td>
+<td><strong>只读分析 Agent</strong>：输入 AWS 成本/资源数据 →
+输出分层报告（归因 / 闲置 / 潜在 / 可优化），每条 finding 带证据（资源
+ID、指标、时间窗、计算式）</td>
+<td>在 demo 数据集上跑通；每条 finding
+都能回溯到原始数据行；零写操作</td>
+<td>R2 R3 R4 R5</td>
+</tr>
+<tr>
+<td>D2</td>
+<td><strong>Eval harness</strong>：植入已知浪费的合成数据集（golden
+set）+ 自动打分</td>
+<td>指标至少：finding precision/recall、证据引用率、<strong>savings ≤
+实际花费</strong>不变量、跨运行稳定性；CI 里能跑</td>
+<td>R7</td>
+</tr>
+<tr>
+<td>D3</td>
+<td><strong>安全 / 风险用例集</strong>：tag 值、资源名、描述字段里埋
+prompt 注入；无证据数字（幻觉）检测</td>
+<td>注入用例全部不改变 agent 行为；报告里无来源的数字 = 0</td>
+<td>R6</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>修复计划（dry-run）：把 finding 转成可审阅的变更计划，人工 gate
+后才执行</td>
+<td>默认只输出 plan；执行路径需要显式确认；有回滚说明</td>
+<td>R2 R4</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>主动 loop：cron 定期跑分析 + eval 回归 + 公理蒸馏，写进
+<code>context/</code></td>
+<td>每次运行留一份可 diff 的产物；回归下降会报出来</td>
+<td>R8 R10</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>开源打磨：README、架构图、quickstart（demo 数据 5
+分钟跑起来）、LICENSE、贡献指南</td>
+<td>新人 clone 后不需要 AWS 账号即可跑 demo</td>
+<td>R11</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>面试叙事：一页「这个项目证明了什么」，按 R1 的 Agent Engineer
+口径</td>
+<td>每个论点链接到具体 change / eval 结果</td>
+<td>R1</td>
+</tr>
+<tr>
+<td>X1</td>
+<td>prompt prehook（UserPromptSubmit）</td>
+<td>—</td>
+<td>R13，另起，挂在 context-infrastructure</td>
+</tr>
+</tbody>
+</table>
+<p>里程碑：<strong>M0</strong> = D0（本次）→ <strong>M1</strong> = D1 +
+D2 最小版（R5 说的”先做分析，结果给我”在这里停一次）→ M2 = D3 → M3 = D4
+→ M4 = D5 → M5 = D6 + D7 发布。</p>
+<h2 id="设计约束">4. 设计约束</h2>
+<ul>
+<li><strong>公司数据零进入</strong>。雇主的账单、资源
+ID、账号号、内部代码都不能进仓库。只用合成数据，或用户自己的个人 AWS
+账号（只读角色）。</li>
+<li><strong>只读优先</strong>。M1–M2 全程无写 API；写路径（D4）单独
+gate。</li>
+<li><strong>数字必须有出处</strong>。这条来自以前做成本可见性服务的教训：报告里推荐的
+savings 比花费本身还大（资源重复计 + 单价错）。在这里它直接变成 D2
+的硬不变量，也是面试里最有说服力的”为什么要做 eval”。</li>
+<li><strong>LLM
+只做判断层</strong>。拉数、聚合、计算交给确定性代码（脚本/SQL），LLM
+负责归类、解释、排序和计划；这样每个数字都能复算。</li>
+<li>每个 change：<code>openspec</code> change → 实现 →
+验收（测试/eval）→ HTML 报告 + 博客笔记 → 一个 commit。流程写在
+<code>.claude/skills/finops-change-loop/SKILL.md</code>。</li>
+</ul>
+<h2 id="agent-engineer-叙事映射d7-的骨架">5. Agent Engineer 叙事映射（D7
+的骨架）</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>面试主题</th>
+<th>在本项目里的证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Context engineering（上限）</td>
+<td><code>context/</code> 蒸馏层；FinOps 领域模型作为 context 喂给
+agent</td>
+</tr>
+<tr>
+<td>Harness（下限）</td>
+<td>只读边界、注入隔离、写操作 gate</td>
+</tr>
+<tr>
+<td>幻觉 / 注入</td>
+<td>D3 用例集 + 无出处数字检测</td>
+</tr>
+<tr>
+<td>评估与迭代</td>
+<td>D2 golden set + 指标 + 每次 change 的前后对比</td>
+</tr>
+<tr>
+<td>Spec 驱动</td>
+<td>OpenSpec change 历史 = 设计决策留痕</td>
+</tr>
+<tr>
+<td>自动化 loop</td>
+<td>被动：CI / hook；主动：cron（D5）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="待你确认">6. 待你确认</h2>
+<ul>
+<li>Q1 数据源：只用合成数据，还是也接你个人 AWS 账号（只读）？这决定 D1
+的输入适配器先写哪个。</li>
+<li>Q2 2335 里”可见性……比如说从这个 Gre…（断了）“：指的是
+<strong>Grafana</strong> 做可见性面板吗？</li>
+<li>Q3 LICENSE：MIT 还是 Apache-2.0？</li>
+<li>Q4 repo 名 <code>finops-agent</code> 是否就是 GitHub
+上的最终名？</li>
+</ul>
+</body>
+</html>

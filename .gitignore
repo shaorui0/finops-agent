@@ -1,0 +1,8 @@
+.DS_Store
+.env
+*.env
+data/private/
+*.parquet
+*.csv.gz
+__pycache__/
+.venv/
