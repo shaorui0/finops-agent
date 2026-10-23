@@ -1,0 +1,50 @@
+flowchart TB
+  IN1["AWS API + Prometheus"]
+  COL["collect.py<br/>写 snapshot 与 trace"]
+  F1[("snapshot.json")]
+  F8[("trace.jsonl<br/>每次外部调用")]
+  CFG["config/*.yaml"]
+  VIS["visibility.py"]
+  F2[("visibility.json")]
+  AN["analyze.py<br/>检测器 + 线索"]
+  JDG["judge + llm.py"]
+  CAS[("eval/cassettes/*.json<br/>LLM 录像")]
+  F3[("findings.json")]
+  PST[("runs/state.json<br/>上次状态")]
+  SLO["slo.py"]
+  F4[("slo.json")]
+  F5[("finops_metrics.prom")]
+  ALR["config/alerts/finops.rules.yml<br/>Prometheus 告警"]
+  FP["fivepart.py + remediate.py"]
+  F6[("plans.json<br/>dry-run")]
+  F7[("fivepart.json")]
+  REP["report.py"]
+  F9[("report.html")]
+  IN1 --> COL
+  COL --> F1
+  COL --> F8
+  F1 --> VIS
+  CFG --> VIS
+  VIS --> F2
+  F1 --> AN
+  AN -->|leads| JDG
+  JDG <--> CAS
+  AN --> F3
+  JDG --> F3
+  F3 --> SLO
+  CFG --> SLO
+  PST --> SLO
+  SLO -->|新状态| PST
+  SLO --> F4
+  SLO --> F5
+  F5 --> ALR
+  F3 --> FP
+  FP --> F6
+  FP --> F7
+  F2 --> REP
+  F3 --> REP
+  F4 --> REP
+  F6 --> REP
+  F7 --> REP
+  F8 --> REP
+  REP --> F9

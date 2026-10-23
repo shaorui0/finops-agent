@@ -1,0 +1,33 @@
+flowchart TB
+  subgraph RULES["规则层 rules/ + CLAUDE.md"]
+    R1["SOUL / USER / WORKSPACE / COMMUNICATION"]
+    R2["axioms FA01 到 FA13"]
+    R3["skills/INDEX.md<br/>.claude/skills: finops-change-loop, openspec-*"]
+    R4["tools/check_rules.py<br/>必需文件、路径引用、公理小节、泄漏扫描"]
+    R5["tools/sync_rules.py<br/>从母版蒸馏，docs/DISTILLATION.md"]
+  end
+  subgraph HOOK["hooks"]
+    H1[".claude/settings.json<br/>PreToolUse Bash"]
+    H2["hooks/aws_readonly_guard.py<br/>退出码 0 放行 / 2 拦截"]
+  end
+  subgraph LOOP["OpenSpec change 循环（finops-change-loop）"]
+    L1["proposal"] --> L2["spec + tasks"] --> L3["impl"] --> L4["docs"] --> L5["acceptance<br/>evidence.md + HTML 报告<br/>+ 博客笔记 + Progress 行"]
+  end
+  subgraph GATE["eval 闸门"]
+    E1["eval/score.py<br/>陷阱 / 不变量 / recall 不低于 baseline.json"]
+    E2["eval/heldout.py + test_adversarial.py<br/>留出世界、注入变体"]
+    E3["make alerts-test<br/>promtool"]
+  end
+  CI["CI .github/workflows/ci.yml<br/>make check, make test, make alerts-test<br/>make eval（replay，无网络无密钥）"]
+  MUT["写操作 gate<br/>plans.json 只是 dry-run<br/>人工审阅后手动执行，proposal 必须写 gate 与回滚"]
+  REPORT["汇报给维护者<br/>验收结果 + 报告路径"]
+  R4 --> CI
+  R3 --> LOOP
+  R1 --> LOOP
+  H1 --> H2
+  H2 -.拦写.-> LOOP
+  L3 --> GATE
+  GATE --> L5
+  L5 --> CI
+  L5 --> REPORT
+  L3 -.涉及 AWS 写.-> MUT

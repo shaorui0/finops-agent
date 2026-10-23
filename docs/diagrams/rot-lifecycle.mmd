@@ -1,0 +1,36 @@
+flowchart LR
+  subgraph LC["发现的生命周期 slo.diff_state"]
+    N(["new<br/>本次首次出现"])
+    P(["persisting<br/>上次就有，计入 remediation_age_days"])
+    R(["resolved<br/>上次有，这次没了"])
+    G(["regressed<br/>曾 resolved，又回来了"])
+  end
+  N -->|下次仍在| P
+  P -->|下次仍在| P
+  N -->|下次消失| R
+  P -->|下次消失| R
+  R -->|再次出现| G
+  G -->|仍在| P
+  STATE[("runs/state.json<br/>runs / open / first_seen / resolved")]
+  LC -.读写.-> STATE
+  subgraph CAD["巡检节奏 Cadence"]
+    D["每日 01:15 make inspect<br/>waste_ratio, anomaly_time_to_detect<br/>useful_work_ratio, 燃烧速度"]
+    W["每周<br/>attribution, orphan age, visibility<br/>remediation age, regressed 列表"]
+    M["每月 账单关账后<br/>commitment_utilization<br/>架构级 finding，SLO 目标本身"]
+  end
+  subgraph AL["告警 finops.rules.yml"]
+    A1["FinOpsRegression<br/>regressed 出现即触发"]
+    A2["FinOpsSLOViolated<br/>违反持续一天"]
+    A3["快烧 / 慢烧<br/>预算耗尽"]
+    A4["FinOpsInspectionStale<br/>两天没有新运行"]
+    A5["BusyButUselessFleet / NatBytesSurge<br/>RetryStorm / CostVisibilityMetricMissing"]
+  end
+  PROM[("finops_metrics.prom")]
+  D --> PROM
+  PROM --> A1
+  PROM --> A2
+  PROM --> A3
+  PROM --> A4
+  G --> A1
+  SIG["原始指标早期信号"] --> A5
+  W -.-> G
