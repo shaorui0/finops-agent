@@ -160,6 +160,7 @@ open runs/local/report.html
 | c0005-pipeline-skeleton | 10-24 | 采集 → 快照 → 检测器 → 可见性链 → 报告 | 确定性层命中 7/12；另外 5 条需要跨源判断，作为线索交出 | [报告](reports/0005-pipeline-skeleton.html) · [笔记](notes/blog/0005-pipeline-skeleton.md) |
 | c0006-eval-ci | 10-24 | 对照标准答案的打分器、回归基线、Makefile、GitHub Actions；README 分两部分 | 评估抓到的第一批 bug 在打分器里：宽松匹配让召回虚高 8 个点 | [报告](reports/0006-eval-ci.html) · [笔记](notes/blog/0006-eval-ci.md) |
 | c0007-finops-slo | 10-24 | FinOps SLO、浪费预算、11 条告警规则（promtool 测试）、跨运行腐烂检测、巡检节奏 | 清理会腐烂：NAT 异常隔了 27 天才被发现，所以巡检必须每天跑 | [报告](reports/0007-finops-slo.html) · [笔记](notes/blog/0007-finops-slo.md) · [文档](docs/FINOPS_SLO.md) |
+| c0008-zh-docs | 10-24 | 文档与报告界面改中文；语言规则更新；线索加结构化 `since` 字段；报告卡片显示资源 ID | 逻辑不能依赖显示文本：一翻译，从文本里解析日期的代码就断了 | [报告](reports/0008-zh-docs.html) · [笔记](notes/blog/0008-zh-docs.md) |
 
 ### 2.5 目录
 

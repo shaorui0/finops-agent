@@ -102,6 +102,7 @@ def render(run: dict) -> str:
                      f"<div class=muted>{escape(x['type'])} · 节省 <b>{_usd(x['monthly_savings_usd'])}</b> "
                      f"<span class=tag>{escape(x['basis'])}</span>"
                      + (f" · 资源花费 {_usd(x['resource_spend_usd'])}" if x.get('resource_spend_usd') is not None else "") + "</div>"
+                     f"<div class=muted>资源：<code>{escape('、'.join(x['resources']))}</code></div>"
                      "<div class=chain>" + "".join(f"<span>{escape(hp)}</span>" for hp in x["hops"]) + "</div>"
                      "<div class=wrap><table><tr><th>来源</th><th>证据</th><th>出处</th></tr>" +
                      "".join(f"<tr><td>{escape(e['source'])}</td><td>{escape(e['what'])}</td><td><code>{escape(e['ref'])}</code></td></tr>" for e in x["evidence"]) +
