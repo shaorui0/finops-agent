@@ -27,7 +27,7 @@ from pathlib import Path
 
 import yaml
 
-from eval.score import gates, score
+from eval.score import _match, gates, score
 from testenv import aws_server, metrics_server, world as world_mod
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,7 +48,7 @@ def _serve(handler):
     raise RuntimeError(f"no free port in {PORT_RANGE.start}-{PORT_RANGE.stop - 1}")
 
 
-def run_world(path, run_id: str = "w", out: str | None = None) -> dict:
+def run_world(path, run_id: str = "w", out: str | None = None, state: str | None = None) -> dict:
     """Run the whole agent (judge uses FINOPS_LLM_MODE, default replay) against the world file `path` (None = base).
 
     Scenario files may carry `scenario.job_labels: {profile: label}`: the test metrics server hard-codes the job label per
@@ -67,7 +67,7 @@ def run_world(path, run_id: str = "w", out: str | None = None) -> dict:
         try:
             s, e = w.period
             d = run(Namespace(aws_endpoint=aws_url, prom=prom_url, region="us-east-1", start=s.isoformat(), end=e.isoformat(),
-                              out=outdir, run_id=run_id, snapshot=None, state=f"{outdir}/state.json", no_state=True))
+                              out=outdir, run_id=run_id, snapshot=None, state=state or f"{outdir}/state.json", no_state=state is None))
             result = json.loads((d / "findings.json").read_text())
             result["trace"] = [json.loads(l) for l in (d / "trace.jsonl").read_text().splitlines()]
             return result
@@ -143,6 +143,12 @@ def evaluate(result: dict, gt: dict, days: int = 30) -> dict:
     llm = [c for c in result.get("trace", []) if c.get("source") == "llm"]
     s["llm"] = {"calls": len(llm), "tokens_in": sum(c["tokens_in"] for c in llm), "tokens_out": sum(c["tokens_out"] for c in llm),
                 "cost_usd": round(sum(c["cost_usd"] for c in llm), 4)}
+    mid = lambda g: (g["monthly_savings_usd"]["min"] + g["monthly_savings_usd"]["max"]) / 2
+    total = sum(mid(g) for g in gt["findings"])
+    s["missed_savings_share"] = {m["id"]: round(mid(next(g for g in gt["findings"] if g["id"] == m["id"])) / total, 4) for m in s["missed"]}
+    s["savings_out_of_range"] = [{"gt": g["id"], "finding": f["id"], "savings": round(f["monthly_savings_usd"], 2), "range": g["monthly_savings_usd"]}
+                                 for g in gt["findings"] for f in result["findings"] if _match(f, g)
+                                 if not g["monthly_savings_usd"]["min"] - 0.01 <= f["monthly_savings_usd"] <= g["monthly_savings_usd"]["max"] + 0.01]
     s["findings_n"] = len(result["findings"])
     s["gt_n"] = len(gt["findings"])
     s["gate_failures"] = gates(s, None)
@@ -183,6 +189,7 @@ def main(argv=None):
     for name, r in res.items():
         print(f"\n[{name}] missed: {[(m['id'], m['title']) for m in r['missed']] or 'none'}; depth={r['depth']}")
         print(f"[{name}] judged: " + "; ".join(f"{j['lead']}:{j['kind']}={j['verdict']}{'' if j['accepted'] else ' REJECTED(' + str(j['reject_reason']) + ')'}" for j in r["judged"]))
+        print(f"[{name}] missed savings share: {r['missed_savings_share']}; savings outside the GT range: {r['savings_out_of_range'] or 'none'}")
         if r["trap_violations"]:
             print(f"[{name}] trap violations: {r['trap_violations']}")
     if a.json:
