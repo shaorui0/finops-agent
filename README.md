@@ -25,7 +25,8 @@ Every finding carries its evidence (resource, metric, window, formula). Numbers 
 | `reports/` | One HTML report per change |
 | `notes/blog/` | Raw idea notes per change |
 | `context/` | Distilled project context (axioms, rules) — planned |
+| `hooks/` | Project guardrails — `aws_readonly_guard.py` blocks non-read AWS CLI calls (registered in `.claude/settings.json`) |
 
 ## License
 
-TBD.
+MIT — see [`LICENSE`](LICENSE).

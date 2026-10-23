@@ -9,7 +9,7 @@ description: 本仓库每个改动的固定闭环：OpenSpec change → 实现 �
 
 ## 步骤
 
-1. **开 change**：`openspec new change <NNNN-slug>`（编号四位递增，看 `reports/` 最大号 +1）。写 proposal / tasks；tasks 里必须有一条「验收」，写明用什么命令或 eval 证明做完。
+1. **开 change**：`openspec new change c<NNNN>-<slug>`（OpenSpec 要求字母开头，所以加 `c`；编号四位递增，看 `reports/` 最大号 +1）。写 proposal / tasks；tasks 里必须有一条「验收」，写明用什么命令或 eval 证明做完。
 2. **实现**：只改 tasks 里列的东西。
 3. **验收**：跑 tasks 里的验收命令，把输出原样存到 `openspec/changes/<id>/evidence.md`。失败就回到 2，不往下走。
 4. **HTML 报告**：`reports/<NNNN-slug>.html`。内容：改了什么、为什么、验收证据、前后对比（有 eval 时给指标）。本地 HTML 文件，不发 Claude artifact。可以先写 md 再 `pandoc -s --metadata title=<slug> in.md -o reports/<NNNN-slug>.html`。
