@@ -1,0 +1,46 @@
+# Ring 1 of the visibility chain: what we need to see, derived from cost goals.
+# Written before looking at any existing metric (FA12). Each SLI names the cost
+# decision it protects. `need` lists the signals; `scope` says which resources
+# must be covered for the SLI to be computable.
+#
+# scope values:
+#   running_instances      every running EC2 instance
+#   services:<a,b>         the listed services (job label)
+#   nat_gateways           every NAT gateway
+
+slis:
+  - id: idle_detection
+    decision: delete or stop resources nobody uses (M3)
+    need:
+      - {signal: cpu utilization per instance, name: 'aws_ec2_cpuutilization_average', scope: running_instances}
+      - {signal: network traffic per instance, name: 'aws_ec2_network_out_.*', scope: running_instances}
+  - id: useful_work_ratio
+    decision: a busy fleet can still be waste; compare work done with work attempted (M3)
+    need:
+      - {signal: job outcomes by status, name: '.*_jobs_total', scope: 'services:ingest-worker,etl-runner'}
+  - id: rightsizing_headroom
+    decision: downsize only with headroom known on every resource dimension (M4)
+    need:
+      - {signal: cpu utilization per instance, name: 'aws_ec2_cpuutilization_average', scope: running_instances}
+      - {signal: memory utilization per instance, name: '.*mem.*', scope: running_instances}
+  - id: latency_slo_guard
+    decision: capacity that protects a latency SLO is not waste (M4, tidal trap)
+    need:
+      - {signal: p99 latency per service, name: 'http_request_duration.*', scope: 'services:web,api'}
+  - id: schedule_detection
+    decision: schedule environments that are idle outside known hours (M4)
+    need:
+      - {signal: request rate per service, name: 'http_requests_total', scope: 'services:web,api,web-dev'}
+  - id: unit_cost_per_job
+    decision: cost per unit of work, to judge whether spend is worth it (M2-M6)
+    need:
+      - {signal: job count, name: '.*_jobs_total', scope: 'services:ingest-worker'}
+      - {signal: work volume (bytes or records processed), name: '.*_(bytes|records)_processed_total', scope: 'services:ingest-worker'}
+  - id: cross_az_attribution
+    decision: attribute regional data transfer to the service pairs causing it (M6)
+    need:
+      - {signal: bytes between a service and its peers, name: '.*_client_bytes_total', scope: 'services:api,web,ingest-worker'}
+  - id: nat_attribution
+    decision: attribute NAT processing bytes to the workloads sending them (M6)
+    need:
+      - {signal: NAT bytes per gateway, name: 'aws_natgateway_bytes_.*', scope: nat_gateways}
