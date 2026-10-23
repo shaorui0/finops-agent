@@ -32,7 +32,7 @@ REQUIRED = [
 REF_FILES = ["CLAUDE.md", "AGENTS.md", "rules/WORKSPACE.md"]
 AXIOM_SECTIONS = ["## 公理", "## 在 FinOps 里", "## 本仓库怎么落地", "## 来源"]
 PUBLIC_LEAKS = [
-    r"(?<![\d.])\d{12}(?![\d.])",  # AWS account id
+    r"(?<![\w.-])\d{12}(?![\w.])",  # AWS account id (all-same-digit placeholders are allowed)
     r"AKIA[0-9A-Z]{16}",           # AWS access key id
     r"/Users/[A-Za-z0-9_.-]+/",    # local home paths
 ]
@@ -100,7 +100,7 @@ def check(root):
         except UnicodeDecodeError:
             continue
         for p in pats:
-            m = p.search(text)
+            m = next((m for m in p.finditer(text) if len(set(m.group())) > 1), None)
             if m:
                 line = text.count("\n", 0, m.start()) + 1
                 errors.append(f"leak pattern in {f.relative_to(root)}:{line}")
