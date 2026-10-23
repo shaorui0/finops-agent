@@ -1,0 +1,22 @@
+flowchart TB
+  M0["M0 以终为始<br/>先定 SLI/SLO，再找数据"]
+  M1["M1 可见性与归因<br/>每一块钱能否落到 owner"]
+  M2["M2 二八排序<br/>先按服务切，意外大项优先"]
+  subgraph OPS["运营级：动单价，天花板是折扣率"]
+    M3["M3 清理（删）<br/>没人用或做无用功"]
+    M4["M4 降配与调度<br/>看峰谷，潮汐不是浪费"]
+    M5["M5 承诺折扣<br/>先查现有承诺利用率"]
+  end
+  subgraph ARCH["架构级：动用量与时长，天花板是数量级"]
+    M6["M6 架构级<br/>scale-to-zero，改数据路径<br/>写明改的是单价、用量还是时长"]
+  end
+  RULES["硬规则<br/>水位对 SLO 负责 / 潮汐不是浪费 / 承诺会改写节省<br/>一个根因可能抬高几行账单 / 节省不超过花费 / 金额标口径"]
+  ORDER["执行顺序：delete -> downsize -> commit<br/>remediate.STEP_ORDER：M3=0, M4=1, M5=2"]
+  M0 --> M1 --> M2 --> M3 --> M4 --> M5
+  M2 --> M6
+  M3 -.先删.-> ORDER
+  M4 -.再降.-> ORDER
+  M5 -.最后买.-> ORDER
+  RULES -.约束每一步.-> M3
+  RULES -.约束.-> M4
+  RULES -.约束.-> M5

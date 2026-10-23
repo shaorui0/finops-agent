@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0019-human-read-layer</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0019-human-read-layer</h1>
+</header>
+<h1
+id="c0019-human-read-layer给读者的图和导读页">c0019-human-read-layer：给读者的图和导读页</h1>
+<p>入口页：<a href="index.html">index.html</a></p>
+<p>仓库里有实现、eval、文档和 18 个
+change，但读者（面试官、评审、维护者自己）没有一个入口：不知道先看什么，架构和数据流只有文字和一张
+ASCII 图，18 个 change 的动机散在各自的 proposal
+里。维护者的要求：「human_read
+这一层也要做一下，该画架构图的、表格的等等」。</p>
+<h2 id="改了什么">改了什么</h2>
+<ul>
+<li>新增 <code>docs/diagrams/</code>：六张图，每张是 mermaid
+源文件加用固定版本 mermaid-cli 渲染的
+SVG：architecture、dataflow、visibility-chain、method、rot-lifecycle、harness-layers。每个框都对照
+<code>finops_agent/</code>、<code>eval/</code>、<code>testenv/</code>、<code>config/</code>、<code>hooks/</code>、<code>.github/</code>、<code>docs/</code>
+里已有的东西，不画未来的东西。附
+<code>README.md</code>（每张图画了什么、怎么重新渲染、源文件 sha256）和
+<code>render.sh</code>。</li>
+<li>新增 <code>tools/build_index.py</code>，生成
+<code>reports/index.html</code>：自包含导读页（深浅色、手机可读、内嵌
+SVG、无 JS、无外链），含项目是什么、10 分钟读法、六张图、全部 change
+一览表（动机取 proposal 的 Why
+第一句）、关键证据页、当前指标（<code>eval/baseline.json</code> 和
+<code>python3 -m eval.heldout</code>）。</li>
+<li>新增
+<code>tools/test_build_index.py</code>：所有链接和资源都存在，六张 SVG
+非空且与源文件对得上，每个 change 目录都在索引里。</li>
+<li>不改 <code>README.md</code> 和
+<code>docs/ARCHITECTURE.md</code>（后续一波统一接入）；嵌入图的 markdown
+片段写在笔记里。</li>
+</ul>
+<h2 id="capabilities">Capabilities</h2>
+<h3 id="new-capabilities">New Capabilities</h3>
+<ul>
+<li><code>human-read-layer</code>：为读者准备的图和导读页，由代码从仓库状态生成并有测试守住。</li>
+</ul>
+<h2 id="impact">Impact</h2>
+<p>只增文件，不改 agent 行为、eval 基线和任何运行产物。无 AWS
+写操作，无需人工 gate。</p>
+<h2 id="六张图">六张图</h2>
+<p>见 <a
+href="../docs/diagrams/README.md">docs/diagrams/README.md</a>。源文件和渲染
+SVG 都在仓库里，导读页内嵌全部六张。</p>
+<h2 id="对比">对比</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>之前</th>
+<th>之后</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>入口</td>
+<td>README 加散落的文档</td>
+<td>reports/index.html 导读页</td>
+</tr>
+<tr>
+<td>架构</td>
+<td>一张 ASCII 图</td>
+<td>六张 mermaid 图加 SVG</td>
+</tr>
+<tr>
+<td>保鲜</td>
+<td>无</td>
+<td>测试核对链接、图的源 sha、change 全列</td>
+</tr>
+</tbody>
+</table>
+<h2 id="c0019-human-read-layer-验收证据">c0019-human-read-layer
+验收证据</h2>
+<p>所有输出为本次真实运行原样粘贴（路径已是相对路径）。</p>
+<h3 id="六张图渲染docsdiagramsrender.sh镜像-minlagmermaid-cli11.4.2">1.
+六张图渲染（docs/diagrams/render.sh，镜像
+minlag/mermaid-cli:11.4.2）</h3>
+<pre><code>architecture.mmd exit=0 sha256=97c4e65413bc1ca9df781afe22f2a83093660a738e5408f4ed464f0e6799c0b3
+dataflow.mmd exit=0 sha256=51387898ea9028af0ad4bd73512184758d423c7cd5b73746b9fa5794f973d5df
+harness-layers.mmd exit=0 sha256=975a09e43e77c191c1547ae3b8ab05afdf89b2749deb79903afd7d8cbeb13122
+method.mmd exit=0 sha256=50a71c065abb5df72321a8b6f20613fb6f42cfd0b89d4f62c87fb42fa34780ed
+rot-lifecycle.mmd exit=0 sha256=6521c1aa835860d7909bac16b14b6ac558e01b2b85c8745263d7f13474532dcc
+visibility-chain.mmd exit=0 sha256=abb02a9d949539a4ed5ca790ed4fd4181f5cd8b4fd35b41e34b5c42cf3d6f971
+render.sh exit=0
+42472 docs/diagrams/architecture.svg
+39104 docs/diagrams/dataflow.svg
+27768 docs/diagrams/harness-layers.svg
+20435 docs/diagrams/method.svg
+29322 docs/diagrams/rot-lifecycle.svg
+15589 docs/diagrams/visibility-chain.svg</code></pre>
+<h3 id="测试-tools.test_build_index">2. 测试 tools.test_build_index</h3>
+<pre><code>test_build_is_deterministic_without_heldout (tools.test_build_index.IndexTest.test_build_is_deterministic_without_heldout) ... ok
+test_diagrams_exist_and_match_source (tools.test_build_index.IndexTest.test_diagrams_exist_and_match_source) ... ok
+test_every_link_resolves (tools.test_build_index.IndexTest.test_every_link_resolves) ... ok
+test_first_sentence (tools.test_build_index.IndexTest.test_first_sentence) ... ok
+test_index_exists_and_is_self_contained (tools.test_build_index.IndexTest.test_index_exists_and_is_self_contained) ... ok
+test_index_lists_every_change (tools.test_build_index.IndexTest.test_index_lists_every_change) ... ok
+test_key_evidence_pages_linked (tools.test_build_index.IndexTest.test_key_evidence_pages_linked) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.051s
+
+OK
+exit=0</code></pre>
+<h3 id="生成导读页">3. 生成导读页</h3>
+<pre><code>reports/index.html
+exit=0
+  198739 reports/index.html
+0
+0</code></pre>
+<h3 id="留出世界指标页面当前指标所用">4.
+留出世界指标（页面「当前指标」所用）</h3>
+<pre><code>| world | kind | recall | savings_recall | precision | savings_accuracy | savings_accuracy_day_scaled | step_agreement | traps | invariants | findings/GT | LLM calls | cost |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| base (in-sample) | in-sample | 1.0 | 1.0 | 1.0 | 0.9167 | 0.9167 | 1.0 | 0 | 0 | 12/12 | 7 | $0.1426 |
+| next_month | held-out | 0.9 | 0.5658 | 1.0 | 0.8889 | 1.0 | 1.0 | 0 | 0 | 9/10 | 6 | $0.1199 |
+| month_after | held-out | 0.9091 | 0.5664 | 1.0 | 1.0 | 1.0 | 1.0 | 0 | 0 | 10/11 | 6 | $0.1193 |</code></pre>
+<h3 id="make-test">5. make test</h3>
+<pre><code>make test exit=0
+Ran 3 tests in 0.077s
+OK
+Ran 21 tests in 2.369s
+OK
+Ran 108 tests in 7.288s
+OK</code></pre>
+<h3 id="openspec-validate">6. openspec validate</h3>
+<pre><code>Change &#39;c0019-human-read-layer&#39; is valid</code></pre>
+<h3 id="make-check写完证据和报告之后见第-8-节">7. make
+check（写完证据和报告之后，见第 8 节）</h3>
+<h3 id="终检报告与导读页生成之后">8. 终检（报告与导读页生成之后）</h3>
+<pre><code>reports/index.html
+Ran 7 tests in 0.044s
+
+OK
+make test exit=0
+check_rules: OK
+make check exit=0</code></pre>
+</body>
+</html>

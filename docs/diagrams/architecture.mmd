@@ -1,0 +1,62 @@
+flowchart TB
+  subgraph EXT["外部世界（只读）"]
+    AWS["AWS API<br/>EC2 / CE / SP / ASG"]
+    PROM["Prometheus API"]
+  end
+  subgraph GUARD["护栏：三层只读"]
+    HOOK["hooks/aws_readonly_guard.py<br/>PreToolUse，fail closed"]
+    IAM["AWS 侧 IAM 只读角色<br/>docs/aws_account_hardening.md"]
+    SRV["testenv 服务端<br/>写操作 UnauthorizedOperation"]
+  end
+  subgraph CORE["finops_agent/ 流水线"]
+    COL["collect.py<br/>Collector.aws / prom + Trace"]
+    SNAP[("snapshot.json<br/>冻结，可 --snapshot 重放")]
+    VIS["visibility.py<br/>ring1 到 ring4"]
+    DET["analyze.py Analyzer<br/>确定性检测器"]
+    LEADS["Lead 线索<br/>跨源判断留给 judge"]
+    JUDGE["judge/<br/>gather, prompt, validate<br/>LLM 经 llm.py replay/record/live"]
+    INV["check_invariants<br/>节省 不超过 花费，口径，证据"]
+    FIND[("findings.json<br/>Finding + Lead")]
+    PLAN["fivepart.py + remediate.py<br/>五段式 + 处置计划 dry-run<br/>delete, downsize, commit"]
+    PREV["prevention.py<br/>预防控制与告警映射"]
+    SLO["slo.py<br/>SLI, SLO, diff_state<br/>to_prometheus"]
+    REP["report.py<br/>report.html"]
+  end
+  subgraph EVAL["eval/ 与 testenv/"]
+    WORLD["testenv/world.yaml<br/>ground_truth + scenarios"]
+    SCORE["eval/score.py<br/>闸门 vs baseline.json"]
+    HELD["eval/heldout.py<br/>样本内 vs 留出"]
+    CASS[("eval/cassettes<br/>LLM 录像")]
+  end
+  CFG1["config/visibility_requirements.yaml<br/>config/cost_goals.yaml"]
+  CFG2["config/finops_slo.yaml<br/>config/alerts/"]
+  HUMAN["人：审阅计划后手动执行<br/>承诺折扣永远由人决定"]
+
+  HOOK -.拦 Bash 里的写命令.-> AWS
+  IAM -.兜底.-> AWS
+  SRV -.测试环境.-> AWS
+  AWS --> COL
+  PROM --> COL
+  COL --> SNAP
+  CFG1 --> VIS
+  SNAP --> VIS
+  COL -->|ring3 只查 series| VIS
+  SNAP --> DET
+  DET --> FIND
+  DET --> LEADS
+  LEADS --> JUDGE
+  JUDGE <--> CASS
+  JUDGE --> FIND
+  FIND --> INV
+  FIND --> SLO
+  CFG2 --> SLO
+  FIND --> PLAN
+  PREV --> PLAN
+  PLAN --> REP
+  SLO --> REP
+  VIS --> REP
+  FIND --> REP
+  PLAN --> HUMAN
+  WORLD --> SCORE
+  FIND --> SCORE
+  SCORE --> HELD

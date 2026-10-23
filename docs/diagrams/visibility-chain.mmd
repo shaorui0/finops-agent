@@ -1,0 +1,14 @@
+flowchart TB
+  GOAL["成本目标（业务语言）<br/>config/cost_goals.yaml<br/>不出现 metric 名"]
+  R1["环 1 需求 ring1<br/>每个 SLI 保护哪个成本决策，需要什么信号<br/>config/visibility_requirements.yaml<br/>或 visibility_llm.py 由目标推导"]
+  R2["环 2 计划 ring2<br/>每个信号：查哪个 API、匹配什么<br/>scope 展开成应覆盖的取值"]
+  R3["环 3 搜索 ring3<br/>只查 Prometheus /api/v1/series<br/>找到 metric 与 series_count"]
+  R4["环 4 缺口 ring4<br/>每个 SLI：covered / partial / missing<br/>缺失的指标本身就是一条发现"]
+  USE["能否支撑 SLI 与 SLO<br/>visibility.json -> 报告 + 告警 CostVisibilityMetricMissing"]
+  RULE{{"先目标，后看现有指标<br/>FA12 以终为始：写环 1 时不得看 metric 列表"}}
+  SC["eval/score_visibility.py<br/>LLM 推导的环 1 对照人工审阅版<br/>recall, precision"]
+  GOAL --> R1
+  RULE -.约束.-> R1
+  R1 --> R2 --> R3 --> R4 --> USE
+  R4 -.缺口回灌.-> R1
+  R1 -.推导结果.-> SC
