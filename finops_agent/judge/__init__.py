@@ -63,7 +63,10 @@ def judge_leads(leads: list[Lead], cx: gather.Ctx, client: LLMClient, trace, nex
             j["key"] = res.key
             try:
                 jd = validate.validate(res.text, b, protected_resources(cx, b.resources))
-                j.update(verdict=jd.verdict, title=jd.title, reasoning=jd.reasoning, accepted=True)
+                j.update(verdict=jd.verdict, title=jd.title, reasoning=jd.reasoning, accepted=True,
+                         redactions=[{k: r[k] for k in ("field", "index", "chars", "sha256")} for r in jd.redactions])
+                if jd.redactions:                  # c0022: the originals and the numbers stay in the trace, never in the finding
+                    entry["redactions"] = jd.redactions
                 if jd.verdict == "waste":
                     f = to_finding(f"F{next_id + len(findings):02d}", lead, b, jd, res.key)
                     findings.append(f)
@@ -81,6 +84,10 @@ def to_finding(fid: str, lead: Lead, b: Brief, jd: validate.Judgment, key: str) 
     savings = cand.value if cand else 0.0
     ev = [b.fact_ids()[e] for e in jd.evidence]
     ev.append(Evidence("llm", jd.reasoning, f"judge {lead.id} cassette {key[:12]}"))
+    for r in jd.redactions or []:
+        where = r["field"] + (f"[{r['index']}]" if r["index"] is not None else "")
+        ev.append(Evidence("redaction", f"{where} 的一个片段（{r['chars']} 字符，sha256 {r['sha256']}）含未取自证据的数字，已移除；发现的金额不受影响，只来自计算候选",
+                           f"judge {lead.id} trace"))
     if cand:
         ev.append(Evidence("computed", f"节省 {savings:,.2f} 取自候选 {cand.key}：{cand.desc}", "judge candidates"))
     return Finding(fid, jd.type, jd.method_step, jd.title, jd.resources, jd.hops, ev, savings,
