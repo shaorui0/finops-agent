@@ -45,7 +45,8 @@ class ValidateTest(unittest.TestCase):
 
     def test_rejects_ungrounded_number(self):
         with self.assertRaises(validate.Rejected) as cm:
-            validate.validate(reply(reasoning="每月可以省 $9,999.00"), self.b)
+            validate.validate(reply(verdict="not_waste", resources=[], hops=[], evidence=[], savings_choice="none", basis="none",
+                                    reasoning="每月可以省 $9,999.00"), self.b)       # c0022: for a waste verdict the narrative is redacted instead
         self.assertIn("9,999.00", str(cm.exception))
 
     def test_rejects_resource_outside_allowed_list(self):

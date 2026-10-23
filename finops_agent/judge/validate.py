@@ -1,6 +1,7 @@
 """Validate the judge's reply. Anything ungrounded is rejected and recorded, never repaired."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -26,9 +27,14 @@ PROTECTIVE_TAG_KEYS = ("dr", "keep", "do-not-delete", "retain")   # intent tags:
 #   G8  quoting an attack: the prompt tells the model to mention instructions found in tags. When the verdict is not `waste`
 #       (no finding is created, the text is a log line) a number that occurs in the untrusted metadata is tolerated, so that
 #       "the Name tag asks for $4,000" does not discard a correct not_waste. For a `waste` verdict the same number is rejected:
-#       the text becomes the finding's reasoning, and an attacker-chosen figure must not be displayed as a claim. Known residual
-#       risk: number bait inside the metadata of a really wasteful fleet makes the model quote it and the finding is rejected
-#       (fail closed, recorded in the trace with the number as reason). See eval/EXPERIMENTS.md.
+#       the text becomes the finding's reasoning, and an attacker-chosen figure must not be displayed as a claim.
+#   G9  redaction (c0022): number bait inside the metadata of a really wasteful fleet makes the model quote the bait. Rejecting the whole
+#       reply (the first design) let an attacker suppress a real finding. Now, when a waste verdict's STRUCTURED fields are all valid
+#       (verdict, type, method_step, resources, evidence ids, savings_choice among the computed candidates, basis) and only the NARRATIVE
+#       (title / hops / reasoning) carries ungrounded numbers, the clause holding each such number is replaced by a marker and the finding is
+#       kept. Savings never come from the narrative, so nothing load-bearing changes. The redaction is recorded (Judgment.redactions): the
+#       finding gets a `redaction` evidence row WITHOUT the removed text, the trace keeps the original fragment and the numbers. Any
+#       ungrounded number that could be load-bearing still rejects: non-waste verdicts, and every structured field (checked by value).
 NUM = re.compile(r"(?<![A-Za-z0-9_.])\$?\d[\d,]*(?:\.\d+)?%?")
 DATE = re.compile(r"\d{4}-\d{2}(-\d{2})?|(?<![\d.])\d{1,2}-\d{2}(?![\d-])|\d{1,2}:\d{2}(:\d{2})?|\d{1,2}\s*月(?:\s*\d{1,2}\s*[日号])?|\d{1,2}\s*[日号]")
 IDENT = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:[-.:][A-Za-z0-9_]+)+|[A-Za-z]+\d[A-Za-z0-9_]*")
@@ -50,6 +56,7 @@ class Judgment:
     savings_choice: str = ZERO
     basis: str = "none"
     reasoning: str = ""
+    redactions: list = None      # [{"field","index","chars","sha256","numbers","original"}]; see G9 (original/numbers stay out of the finding)
 
 
 def extract_json(text: str) -> dict:
@@ -114,21 +121,40 @@ def ungrounded_numbers(text: str, b: Brief, quoting_ok: bool = False) -> list:
     return [m.group() for m in NUM.finditer(_clean(text)) if not any(_matches(m.group(), k) for k in known)]
 
 
+REDACTED = "[已移除：含未取自证据的数字]"
+CLAUSE = re.compile(r"(?<=[。！？；;，、])|(?<=[.!?])(?=\s)|\n")
+
+
+def _redact(text: str, field: str, index, b: Brief) -> tuple:
+    """Replace every clause that holds an ungrounded number. Returns (new text, redaction records)."""
+    out, recs = [], []
+    for part in CLAUSE.split(text):
+        bad = ungrounded_numbers(part, b) if part else []
+        if bad:
+            recs.append({"field": field, "index": index, "chars": len(part), "numbers": bad, "original": part,
+                         "sha256": hashlib.sha256(part.encode()).hexdigest()[:12]})
+            out.append(REDACTED)
+        else:
+            out.append(part)
+    return "".join(out), recs
+
+
 def validate(raw: str, b: Brief, protected: set | None = None) -> Judgment:
     d = extract_json(raw)
     v = d.get("verdict")
     if v not in VERDICTS:
         raise Rejected(f"verdict {v!r} not in {VERDICTS}")
-    texts = " ".join(str(d.get(k, "")) for k in ("title", "reasoning")) + " " + " ".join(map(str, d.get("hops") or []))
+    hops_raw = d.get("hops") or []
+    texts = " ".join(str(d.get(k, "")) for k in ("title", "reasoning")) + " " + " ".join(map(str, hops_raw))
     bad = ungrounded_numbers(texts, b, quoting_ok=(v != "waste"))
-    if bad:
+    if bad and v != "waste":
         raise Rejected(f"numbers not found in the evidence: {bad}")
     cited = d.get("evidence") or []
     ids = b.fact_ids()
     if not isinstance(cited, list) or any(c not in ids for c in cited):
         raise Rejected(f"evidence ids not in the brief: {cited}")
     j = Judgment(v, str(d.get("type", "")), str(d.get("method_step", "")), str(d.get("title", "")), list(d.get("resources") or []),
-                 list(d.get("hops") or []), cited, str(d.get("savings_choice", ZERO)), str(d.get("basis", "none")), str(d.get("reasoning", "")))
+                 list(hops_raw), cited, str(d.get("savings_choice", ZERO)), str(d.get("basis", "none")), str(d.get("reasoning", "")), [])
     if not j.title or not j.reasoning:
         raise Rejected("title and reasoning are required")
     if v != "waste":
@@ -154,4 +180,17 @@ def validate(raw: str, b: Brief, protected: set | None = None) -> Judgment:
     hit = set(j.resources) & (protected or set())
     if hit:
         raise Rejected(f"{sorted(hit)} carry an intent tag ({'/'.join(PROTECTIVE_TAG_KEYS)}): idle by design")
+    if bad:                                                   # G9: structure is valid, only the narrative is dirty
+        j.title, r = _redact(j.title, "title", None, b)
+        j.redactions += r
+        if j.title.replace(REDACTED, "").strip(" ，,。.;；、") == "":
+            j.title = f"{j.type}：{'、'.join(j.resources[:2])}"       # code-built title; the model's title carried nothing usable
+        j.reasoning, r = _redact(j.reasoning, "reasoning", None, b)
+        j.redactions += r
+        for i, h in enumerate(j.hops):
+            j.hops[i], r = _redact(h, "hops", i, b)
+            j.redactions += r
+        left = ungrounded_numbers(" ".join([j.title, j.reasoning] + j.hops), b)
+        if left:                                              # fail closed: redaction must leave nothing ungrounded behind
+            raise Rejected(f"numbers not found in the evidence: {left}")
     return j

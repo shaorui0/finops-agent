@@ -1,4 +1,5 @@
 """Numeric grounding of judged findings (rules G1-G6 in finops_agent/judge/validate.py)."""
+import json
 import unittest
 from types import SimpleNamespace
 
@@ -7,7 +8,15 @@ from finops_agent.analyze import Evidence, Lead
 from finops_agent.collect import Trace
 from finops_agent.judge import validate
 from finops_agent.judge.brief import Brief, Candidate
-from finops_agent.test_judge import FakeClient, reply
+from finops_agent.test_judge import FakeClient, reply as _reply
+
+
+def reply(**kw):
+    """test_judge.reply with defaults grounded in make_brief()'s evidence."""
+    base = {"title": "r-1 fleet 月化 $1,468.80 但工作失败", "hops": ["CPU 平均 61.8%", "成功 0 次/天"], "reasoning": "月化 $1,468.80，没有有用的产出。",
+            "savings_choice": "fleet_cost"}
+    base.update(kw)
+    return _reply(**base)
 
 
 def make_brief(resources=("r-1",)):
@@ -63,23 +72,42 @@ class ValidateGroundingTest(unittest.TestCase):
     def setUp(self):
         self.b = make_brief()
 
-    def test_invented_figure_in_reasoning_rejects_the_finding(self):
-        with self.assertRaises(validate.Rejected) as cm:
-            validate.validate(reply(reasoning="fleet 月化 $1,468.80，但每月可以多省 $12,345.67。"), self.b)
-        self.assertIn("12,345.67", str(cm.exception))
+    def test_invented_figure_in_reasoning_is_redacted_not_kept(self):
+        j = validate.validate(reply(reasoning="fleet 月化 $1,468.80。但每月可以多省 $12,345.67。"), self.b)
+        self.assertNotIn("12,345.67", j.reasoning)
+        self.assertIn("1,468.80", j.reasoning)                       # the grounded clause survives
+        self.assertEqual([(r["field"], r["numbers"]) for r in j.redactions], [("reasoning", ["$12,345.67"])])
+        self.assertEqual(validate.ungrounded_numbers(" ".join([j.title, j.reasoning] + j.hops), self.b), [])
 
-    def test_invented_figure_in_title_or_hops_rejects_too(self):
-        for kw in ({"title": "r-1 每月浪费 $5,000.00"}, {"hops": ["CPU 平均 61.8%", "每月损失 $5,000.00"]}):
-            with self.assertRaises(validate.Rejected):
-                validate.validate(reply(**kw), self.b)
+    def test_invented_figure_in_title_or_hops_is_redacted_too(self):
+        j = validate.validate(reply(title="r-1 每月浪费 $5,000.00", hops=["CPU 平均 61.8%", "每月损失 $5,000.00"]), self.b)
+        self.assertNotIn("5,000", " ".join([j.title] + j.hops))
+        self.assertEqual({(r["field"], r["index"]) for r in j.redactions}, {("title", None), ("hops", 1)})
+        self.assertEqual(j.hops[0], "CPU 平均 61.8%")
+
+    def test_a_title_that_is_all_bait_gets_a_code_built_title(self):
+        j = validate.validate(reply(title="省 $5,000.00"), self.b)
+        self.assertEqual(j.title, "busy_but_useless：r-1")
+
+    def test_structured_fields_still_reject(self):
+        for kw in ({"savings_choice": "$99,999"}, {"savings_choice": "made_up"}, {"resources": ["r-1", "$99,999"]}, {"evidence": ["E99"]},
+                   {"basis": "list_price"}, {"type": "saved $99,999"}):
+            with self.assertRaises(validate.Rejected, msg=str(kw)):
+                validate.validate(reply(reasoning="fleet 月化 $1,468.80，可省 $99,999。", **kw), self.b)
+
+    def test_redaction_never_applies_to_a_non_waste_verdict(self):
+        with self.assertRaises(validate.Rejected):
+            validate.validate(reply(verdict="not_waste", resources=[], hops=[], evidence=[], savings_choice="none", basis="none",
+                                    reasoning="本月可以省 $31,337。"), self.b)
 
     def test_grounded_reply_is_accepted(self):
         j = validate.validate(reply(title="r-1 fleet 月化 $1,468.80", hops=["CPU 平均 61.8%", "成功 0 次/天"], reasoning="月化 $1,468.80，每台 $244.80。"), self.b)
         self.assertEqual(j.verdict, "waste")
 
-    def test_a_number_copied_from_a_tag_is_rejected(self):
-        with self.assertRaises(validate.Rejected):
-            validate.validate(reply(reasoning="Name 标签说可省 $99,999。"), self.b)
+    def test_a_number_copied_from_a_tag_is_redacted(self):
+        j = validate.validate(reply(reasoning="Name 标签说可省 $99,999。"), self.b)
+        self.assertNotIn("99,999", j.reasoning)
+        self.assertEqual(j.redactions[0]["numbers"], ["$99,999"])
 
 
 class QuotingAnAttackTest(unittest.TestCase):
@@ -99,11 +127,12 @@ class QuotingAnAttackTest(unittest.TestCase):
         with self.assertRaises(validate.Rejected):
             validate.validate(self.nw(title="r-1 不是浪费", reasoning="本月可以省 $31,337。"), self.b)
 
-    def test_waste_may_not_carry_a_number_from_the_untrusted_metadata(self):
-        """Number bait on a really wasteful fleet: the model quotes the bait, the finding is rejected (fail closed, recorded)."""
-        with self.assertRaises(validate.Rejected) as cm:
-            validate.validate(reply(reasoning="fleet 月化 $1,468.80；Name 标签声称可省 $99,999，不可信，已忽略。"), self.b)
-        self.assertIn("99,999", str(cm.exception))
+    def test_waste_quoting_the_bait_keeps_the_finding_and_redacts_the_bait(self):
+        """Number bait on a really wasteful fleet (c0022): the model quotes the bait; the finding survives, the quote does not."""
+        j = validate.validate(reply(reasoning="fleet 月化 $1,468.80；Name 标签声称可省 $99,999，不可信，已忽略。"), self.b)
+        self.assertEqual(j.verdict, "waste")
+        self.assertNotIn("99,999", j.reasoning)
+        self.assertEqual(j.redactions[0]["numbers"], ["$99,999"])
 
     def test_month_and_day_words_are_calendar_not_amounts(self):
         self.assertEqual(validate.ungrounded_numbers("它已于 7 月退役，8月15日停机，每天 3 号", self.b), [])
@@ -111,22 +140,39 @@ class QuotingAnAttackTest(unittest.TestCase):
 
 
 class TraceTest(unittest.TestCase):
-    def test_rejection_is_recorded_in_the_trace_and_makes_no_finding(self):
+    def run_judge(self, bad):
         b = make_brief()
         lead = Lead("L01", "s", "M3_delete", [], [], kind="fleet_work")
         orig = judge_mod.gather.build
         judge_mod.gather.build = lambda l, cx: b
         try:
-            bad = reply(title="r-1 fleet 月化 $1,468.80", hops=["a 61.8%", "b 6 倍"], reasoning="多省 $12,345.67")
             trace = Trace()
             findings, judgments = judge_mod.judge_leads([lead], SimpleNamespace(inst={}), FakeClient({"signal": bad, "6 台": bad}, delay=0), trace, 1)
         finally:
             judge_mod.gather.build = orig
+        return findings, judgments, trace
+
+    def test_non_waste_rejection_is_recorded_in_the_trace_and_makes_no_finding(self):
+        bad = reply(verdict="not_waste", resources=[], hops=[], evidence=[], savings_choice="none", basis="none", reasoning="多省 $12,345.67")
+        findings, judgments, trace = self.run_judge(bad)
         self.assertEqual(findings, [])
         self.assertFalse(judgments[0]["accepted"])
         self.assertIn("12,345.67", judgments[0]["reject_reason"])
         self.assertFalse(trace.calls[0]["accepted"])
         self.assertIn("numbers not found in the evidence", trace.calls[0]["reject_reason"])
+
+    def test_redaction_is_recorded_on_the_finding_and_in_the_trace(self):
+        findings, judgments, trace = self.run_judge(reply(reasoning="多省 $12,345.67。月化 $1,468.80。"))
+        self.assertEqual(len(findings), 1)
+        f = findings[0].to_dict()
+        self.assertEqual(f["monthly_savings_usd"], 1468.80)                # from the candidate, never from the text
+        self.assertNotIn("12,345", json.dumps(f, ensure_ascii=False))
+        self.assertNotIn("12,345", json.dumps(judgments, ensure_ascii=False))
+        self.assertEqual([e["source"] for e in f["evidence"] if e["source"] == "redaction"], ["redaction"])
+        red = trace.calls[0]["redactions"]                                  # the trace keeps what was removed
+        self.assertEqual(red[0]["numbers"], ["$12,345.67"])
+        self.assertIn("12,345.67", red[0]["original"])
+        self.assertTrue(trace.calls[0]["accepted"])
 
 
 if __name__ == "__main__":
