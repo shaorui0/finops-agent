@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from testenv.world import JOB_BY_PROFILE, STEP, cpu, load, _hour, _office, _weekday, _bell
+from testenv.world import JOB_BY_PROFILE, STEP, cpu, load, use as use_world, _hour, _office, _weekday, _bell
 
 METADATA = {
     "aws_ec2_cpuutilization_average": ("gauge", "CloudWatch CPUUtilization, percent (cloudwatch-exporter)"),
@@ -345,7 +345,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=9090)
+    ap.add_argument("--world", help="world file (full world or scenario overlay); default testenv/world.yaml")
     a = ap.parse_args(argv)
+    use_world(a.world)
     build()
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
     print(f"test-metrics-server listening on http://{a.host}:{a.port}", file=sys.stderr, flush=True)

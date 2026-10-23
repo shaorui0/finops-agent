@@ -1,0 +1,46 @@
+# Scenario overlay: "the month after next" (2026-11), stacked on next_month.yaml (-> world.yaml).
+#
+# Why it exists: diff_state marks `regressed` only when a finding key that was resolved in an
+# earlier run comes back, and a key can only be resolved once a run saw it disappear. Two runs
+# can therefore never show a regression; the demo needs three periods (09 base, 10 next_month, 11 this).
+#
+# Story: an unrelated terraform apply of the orders-db stack (whose code still says gp2) reverted
+# the volume that was migrated to gp3 in October -> the same gp2_to_gp3 key is back.
+# team-data deleted its scratch volume. team-web allocated a fresh Elastic IP for a canary that
+# was then torn down, leaving the IP idle (a different allocation id, so it is `new`, not regressed).
+#
+# Expected state diff vs a prior run on next_month (period 2026-10):
+#   regressed  gp2_to_gp3|vol-0db..             terraform reverted gp3 -> gp2
+#   resolved   unattached_volume|vol-0new..     scratch volume deleted
+#   new        idle_public_ip|eipalloc-..0003   leaked by the canary
+#   persisting misattributed_tags, stopped_instance_storage, orphan_snapshots, savings_plan_underutilized
+scenario:
+  name: month_after
+  base: next_month.yaml
+  expect:
+    resolved:
+      - "unattached_volume|vol-0new000000000e001"
+    new:
+      - "idle_public_ip|eipalloc-0aa0000000000003"
+    regressed:
+      - "gp2_to_gp3|vol-0db0000000000a001"
+    persisting:
+      - "misattributed_tags|i-0a1b2c3d4e5f60501"
+      - "stopped_instance_storage|i-0a1b2c3d4e5f60801,vol-0leg000000000b001"
+      - "orphan_snapshots|ami-ingest-v1,ami-ingest-v2,ami-ingest-v3,ami-ingest-v4,ami-ingest-v5,vol-0gone00000000d001"
+      - "savings_plan_underutilized|sp-ec2-m5-01"
+
+set:
+  account: {period: {start: "2026-11-01", end: "2026-12-01"}}
+
+remove:
+  volumes: [vol-0new000000000e001]
+
+patch:
+  instances:
+    i-0a1b2c3d4e5f60301:
+      volumes: [{id: vol-0db0000000000a001, size: 1000, type: gp2}]
+
+add:
+  addresses:
+    - {allocation_id: eipalloc-0aa0000000000003, public_ip: 203.0.113.12, since: "2026-11-05"}

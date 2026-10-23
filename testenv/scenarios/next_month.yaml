@@ -1,0 +1,51 @@
+# Scenario overlay: "next month" (2026-10) for the base world.
+#
+# Format: OVERLAY (not a full world). `scenario.base` points at the world it patches;
+# testenv/world.py applies set -> remove -> patch -> add, so base stays the single source of
+# every number not mentioned here. A file with a top-level `account` is a full world instead.
+#
+# Story: after the 2026-09 report team-api and team-web cleaned up three findings, and team-data
+# left a new scratch volume behind. Nothing else changed (the ingest incident, the NAT bill, the
+# stopped legacy host, the orphan snapshots and the unused Savings Plan are all still there).
+#
+# Expected state diff of a run on this world, vs a prior run on the base world (period 2026-09):
+#   resolved   unattached_volume|vol-0orph..   team-web deleted tmp-migration
+#              idle_public_ip|eipalloc-..0001  EIP released
+#              gp2_to_gp3|vol-0db..            orders-db volume migrated to gp3 (modify-volume)
+#   new        unattached_volume|vol-0new..    team-data's restore-scratch volume, never attached
+#   persisting everything else (misattributed_tags, stopped_instance_storage, orphan_snapshots,
+#              savings_plan_underutilized)
+scenario:
+  name: next_month
+  base: ../world.yaml
+  period: {start: "2026-10-01", end: "2026-11-01"}
+  expect:
+    resolved:
+      - "unattached_volume|vol-0orph00000000c001"
+      - "idle_public_ip|eipalloc-0aa0000000000001"
+      - "gp2_to_gp3|vol-0db0000000000a001"
+    new:
+      - "unattached_volume|vol-0new000000000e001"
+    regressed: []
+    persisting:
+      - "misattributed_tags|i-0a1b2c3d4e5f60501"
+      - "stopped_instance_storage|i-0a1b2c3d4e5f60801,vol-0leg000000000b001"
+      - "orphan_snapshots|ami-ingest-v1,ami-ingest-v2,ami-ingest-v3,ami-ingest-v4,ami-ingest-v5,vol-0gone00000000d001"
+      - "savings_plan_underutilized|sp-ec2-m5-01"
+
+set:
+  account: {period: {start: "2026-10-01", end: "2026-11-01"}}
+
+remove:
+  volumes: [vol-0orph00000000c001]
+  addresses: [eipalloc-0aa0000000000001]
+
+patch:
+  instances:
+    i-0a1b2c3d4e5f60301:
+      volumes: [{id: vol-0db0000000000a001, size: 1000, type: gp3}]
+
+add:
+  volumes:
+    - {id: vol-0new000000000e001, size: 200, type: gp3, az: us-east-1a, state: available,
+       created: "2026-10-08T09:00:00Z", tags: {Name: restore-scratch, owner: team-data}}

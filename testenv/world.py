@@ -12,9 +12,11 @@ Cost model (per day, per line):
 """
 from __future__ import annotations
 
+import copy
 import functools
 import math
 import random
+import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -196,6 +198,8 @@ class World:
                             util["total"], util["unused"], 24))
 
         for v in self.all_volumes():
+            if _d(v["created"]) > day:     # scenario volumes only bill from creation (base volumes all predate cost_start)
+                continue
             gb = P["ebs_gb_month"][v["type"]] * v["size"] / 30
             ut = "EBS:VolumeUsage.piops" if v["type"] == "io1" else f"EBS:VolumeUsage.{v['type']}"
             tags = v.get("tags", {})
@@ -218,6 +222,8 @@ class World:
         out.append(CostLine(day, SERVICE_EC2_OTHER, "DataTransfer-Regional-Bytes", None, {}, xaz * P["cross_az_gb"], xaz * P["cross_az_gb"], xaz))
 
         for a in self.raw["addresses"]:
+            if a.get("since") and _d(a["since"]) > day:     # scenario addresses only bill from allocation
+                continue
             ut = "PublicIPv4:InUseAddress" if a.get("instance") else "PublicIPv4:IdleAddress"
             c = P["public_ipv4_hourly"] * 24
             out.append(CostLine(day, SERVICE_VPC, ut, a["allocation_id"], {}, c, c, 24))
@@ -243,12 +249,86 @@ class World:
         return u["nat_gb_baseline_month"] / 30 + attempts * u["ingest_s3_gb_per_attempt"]
 
 
-@functools.lru_cache(maxsize=1)
-def load(path: str | None = None) -> World:
-    raw = yaml.safe_load(Path(path or WORLD_FILE).read_text())
+_ACTIVE: str | None = None     # world selected with use(); None = base world.yaml
+
+
+def use(path: str | Path | None) -> None:
+    """Select the world every later load() returns (servers call this from --world)."""
+    global _ACTIVE
+    _ACTIVE = str(Path(path).resolve()) if path else None
+    _load.cache_clear()
+    mod = sys.modules.get("testenv.metrics_server")
+    if mod is not None:
+        mod.build.cache_clear()
+
+
+def load(path: str | Path | None = None) -> World:
+    return _load(str(Path(path).resolve()) if path else _ACTIVE)
+
+
+@functools.lru_cache(maxsize=4)
+def _load(path: str | None) -> World:
+    raw = read_world(Path(path) if path else WORLD_FILE)
     w = World(raw)
     w.build_lines()
     return w
+
+
+# ---- scenario overlays -----------------------------------------------------
+ID_FIELD = {"addresses": "allocation_id"}   # every other collection is keyed by `id`
+
+
+def _merge(dst: dict, src: dict) -> None:
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            _merge(dst[k], v)
+        else:
+            dst[k] = copy.deepcopy(v)
+
+
+def apply_overlay(base: dict, ov: dict) -> dict:
+    """Return base with the overlay applied. Operations, in order: set, remove, patch, add.
+
+    set:    deep-merge of plain keys (account.period, usage, ...)
+    remove: {collection: [id, ...]}          -- must exist
+    patch:  {collection: {id: {field: v}}}   -- deep-merged into the item; must exist
+    add:    {collection: [item, ...]}        -- id must not exist yet
+    """
+    raw = copy.deepcopy(base)
+    _merge(raw, ov.get("set", {}))
+
+    def find(coll, rid):
+        key = ID_FIELD.get(coll, "id")
+        return next((i for i in raw[coll] if i[key] == rid), None)
+
+    for coll, ids in ov.get("remove", {}).items():
+        for rid in ids:
+            item = find(coll, rid)
+            if item is None:
+                raise ValueError(f"overlay removes unknown {coll} {rid}")
+            raw[coll].remove(item)
+    for coll, patches in ov.get("patch", {}).items():
+        for rid, fields in patches.items():
+            item = find(coll, rid)
+            if item is None:
+                raise ValueError(f"overlay patches unknown {coll} {rid}")
+            _merge(item, fields)
+    for coll, items in ov.get("add", {}).items():
+        for it in items:
+            if find(coll, it[ID_FIELD.get(coll, "id")]) is not None:
+                raise ValueError(f"overlay adds duplicate {coll} {it}")
+            raw[coll].append(copy.deepcopy(it))
+    raw["scenario"] = {k: v for k, v in ov["scenario"].items() if k != "base"}
+    return raw
+
+
+def read_world(path: Path) -> dict:
+    """A world file is either a full world (has `account`) or an overlay (has `scenario.base`)."""
+    raw = yaml.safe_load(path.read_text())
+    sc = raw.get("scenario") if "account" not in raw else None
+    if sc is None:
+        return raw
+    return apply_overlay(read_world((path.parent / sc["base"]).resolve()), raw)
 
 
 # ---- metric profiles -------------------------------------------------------
