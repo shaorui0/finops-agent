@@ -1,0 +1,103 @@
+# FinOps alerting rules. Two layers:
+#   finops-slo      on the SLIs each agent run exports (finops_sli, finops_findings, ...)
+#   finops-signals  on raw infrastructure signals, to catch rot between runs
+# Validate: promtool check rules finops.rules.yml && promtool test rules finops.rules.test.yml
+groups:
+  - name: finops-slo
+    rules:
+      - alert: FinOpsSLOViolated
+        expr: |
+          (finops_sli < on (sli) group_left () finops_slo_target{op=">="})
+          or
+          (finops_sli > on (sli) group_left () finops_slo_target{op="<="})
+        for: 1d
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "FinOps SLO {{ $labels.sli }} violated for a day (value {{ $value }})"
+          runbook: docs/FINOPS_SLO.md#slis
+
+      - alert: FinOpsWasteBudgetExhausted
+        expr: finops_waste_budget_used > 1
+        for: 1h
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "Open waste is {{ $value | humanizePercentage }} of the monthly waste budget"
+          runbook: docs/FINOPS_SLO.md#waste-budget
+
+      - alert: FinOpsWasteFastBurn
+        expr: delta(finops_waste_usd[1d]) > 2 * finops_waste_budget_usd / 30
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "Open waste grew by ${{ $value | printf \"%.0f\" }} in a day, more than twice the daily budget"
+          runbook: docs/FINOPS_SLO.md#waste-budget
+
+      - alert: FinOpsWasteSlowBurn
+        expr: delta(finops_waste_usd[7d]) > 7 * finops_waste_budget_usd / 30
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "Open waste grew by ${{ $value | printf \"%.0f\" }} in a week, more than the weekly budget"
+          runbook: docs/FINOPS_SLO.md#waste-budget
+
+      - alert: FinOpsRegression
+        expr: finops_findings{state="regressed"} > 0
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "{{ $value }} finding(s) came back after being resolved: the system is rotting"
+          runbook: docs/FINOPS_SLO.md#rot
+
+      - alert: FinOpsInspectionStale
+        expr: time() - finops_last_run_timestamp_seconds > 2 * 86400
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "No FinOps inspection run for {{ $value | humanizeDuration }}"
+          runbook: docs/FINOPS_SLO.md#cadence
+
+  - name: finops-signals
+    rules:
+      - alert: BusyButUselessFleet
+        expr: |
+          sum by (job) (rate(ingest_jobs_total{status="succeeded"}[1h])) == 0
+          and on (job)
+          sum by (job) (rate(ingest_jobs_total[1h])) > 0
+        for: 30m
+        labels: {severity: page, team: finops}
+        annotations:
+          summary: "{{ $labels.job }} is attempting work but nothing succeeds; its compute is waste until fixed"
+          runbook: docs/FINOPS_SLO.md#busy-but-useless
+
+      - alert: RetryStorm
+        expr: |
+          sum by (job) (rate(ingest_job_retries_total[15m]))
+          / sum by (job) (rate(ingest_jobs_total[15m])) > 1
+        for: 30m
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "{{ $labels.job }} retries {{ $value | printf \"%.1f\" }}x per job; retries multiply compute, NAT and request costs"
+
+      - alert: NatBytesSurge
+        expr: |
+          sum(avg_over_time(aws_natgateway_bytes_out_to_destination_sum[1h]))
+          > 2 * sum(avg_over_time(aws_natgateway_bytes_out_to_destination_sum[7d] offset 1h))
+        for: 1h
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "NAT bytes are {{ $value | humanize }}B per 5m, more than twice the 7-day average"
+          runbook: docs/FINOPS_SLO.md#path-cost
+
+      - alert: DevEnvironmentIdleRunning
+        expr: |
+          sum by (job) (rate(http_requests_total{job=~".+-dev"}[1h])) == 0
+          and on (job)
+          count by (job) (up{job=~".+-dev"}) > 0
+        for: 6h
+        labels: {severity: info, team: finops}
+        annotations:
+          summary: "{{ $labels.job }} has served no requests for 6h but is still running"
+
+      - alert: CostVisibilityMetricMissing
+        expr: absent(aws_ec2_cpuutilization_average) or absent(ingest_jobs_total) or absent(aws_natgateway_bytes_out_to_destination_sum)
+        for: 30m
+        labels: {severity: ticket, team: finops}
+        annotations:
+          summary: "A metric that a FinOps SLI depends on has disappeared"
+          runbook: docs/FINOPS_SLO.md#visibility
