@@ -6,3 +6,4 @@ data/private/
 *.csv.gz
 __pycache__/
 .venv/
+.leak_patterns.local
