@@ -35,6 +35,45 @@ def _usd(v):
     return f"${v:,.2f}"
 
 
+VERDICT_ZH = {"waste": "浪费", "not_waste": "不是浪费", "insufficient_evidence": "证据不足", None: "未判断"}
+
+
+def _judgment_note(j):
+    if not j:
+        return ""
+    if not j["accepted"]:
+        return f"<div class=card><b class=missing>判断被拒绝</b>：{escape(str(j['reject_reason']))}</div>"
+    fnd = f"，成为发现 {escape(j['finding'])}" if j["finding"] else "，没有产生发现"
+    return (f"<div class=card><b>判断：{VERDICT_ZH.get(j['verdict'], j['verdict'])}</b>{fnd}"
+            f"<div>{escape(j['title'] or '')}</div><div class=muted>{escape(j['reasoning'] or '')}</div></div>")
+
+
+def _llm_cost(run: dict) -> str:
+    calls = [c for c in run["trace"] if c["source"] == "llm"]
+    h = ["<h2>Agent 成本 <span class=muted>· 判断层的每一次 LLM 调用</span></h2>"]
+    if not calls:
+        return h[0] + "<p class=muted>本次运行没有调用 LLM（判断层关闭）。</p>"
+    tin, tout = sum(c["tokens_in"] for c in calls), sum(c["tokens_out"] for c in calls)
+    cost, lat = sum(c["cost_usd"] for c in calls), [c["latency_ms"] for c in calls]
+    rejected = sum(1 for c in calls if not c["accepted"])
+    h.append("<div class=kpis>"
+             f"<div class=kpi><span class=muted>调用次数</span><b>{len(calls)}</b></div>"
+             f"<div class=kpi><span class=muted>输入 / 输出 tokens</span><b>{tin:,} / {tout:,}</b></div>"
+             f"<div class=kpi><span class=muted>花费（录制值）</span><b>{_usd(cost)}</b></div>"
+             f"<div class=kpi><span class=muted>延迟 平均 / 最大</span><b>{sum(lat) / len(lat) / 1000:.1f}s / {max(lat) / 1000:.1f}s</b></div>"
+             f"<div class=kpi><span class=muted>被拒绝的判断</span><b class={'covered' if not rejected else 'missing'}>{rejected}</b></div>"
+             "</div>")
+    h.append(f"<p class=muted>模式 {escape(calls[0]['mode'])}；replay 模式下 tokens、花费、延迟都是录制时的真实值。每条线索一次独立调用，互相看不到对方的证据。</p>")
+    h.append("<div class=wrap><table><tr><th>线索</th><th>模型</th><th class=num>输入</th><th class=num>输出</th><th class=num>延迟</th><th class=num>花费</th><th>结果</th></tr>")
+    for c in calls:
+        res = escape(str(c["verdict"])) if c["accepted"] else f"<span class=missing>拒绝：{escape(str(c['reject_reason']))}</span>"
+        h.append(f"<tr><td>{escape(c['params']['lead'])} <span class=muted>{escape(c['params']['kind'])}</span></td><td>{escape(c['params']['model'])}</td>"
+                 f"<td class=num>{c['tokens_in']:,}</td><td class=num>{c['tokens_out']:,}</td><td class=num>{c['latency_ms'] / 1000:.1f}s</td>"
+                 f"<td class=num>{_usd(c['cost_usd'])}</td><td>{res}</td></tr>")
+    h.append("</table></div>")
+    return "".join(h)
+
+
 def render(run: dict) -> str:
     f = run["findings"]
     total = run["ranking"]["total"]
@@ -45,7 +84,7 @@ def render(run: dict) -> str:
          f"<title>FinOps 运行 {escape(run['run_id'])}</title><style>{CSS}</style></head><body><main>"]
     h.append(f"<h1>FinOps 运行 <code>{escape(run['run_id'])}</code></h1>"
              f"<div class=muted>账号 {escape(run['account'])} · 周期 {run['period']['Start']} → {run['period']['End']} · "
-             f"{len(run['trace'])} 次只读 API 调用</div>")
+             f"{sum(1 for c in run['trace'] if c['source'] != 'llm')} 次只读 API 调用 · {sum(1 for c in run['trace'] if c['source'] == 'llm')} 次 LLM 调用</div>")
     inv = run["invariants"]
     h.append("<div class=kpis>"
              f"<div class=kpi><span class=muted>花费（amortized）</span><b>{_usd(total)}</b></div>"
@@ -107,11 +146,13 @@ def render(run: dict) -> str:
                      "<div class=wrap><table><tr><th>来源</th><th>证据</th><th>出处</th></tr>" +
                      "".join(f"<tr><td>{escape(e['source'])}</td><td>{escape(e['what'])}</td><td><code>{escape(e['ref'])}</code></td></tr>" for e in x["evidence"]) +
                      "</table></div></div>")
+        judged = {j["lead"]: j for j in run.get("judgments", [])}
         for l in step_l:
             h.append(f"<div class=card><h3>{escape(l['id'])} · 线索：{escape(l['signal'])}</h3>"
                      f"<div class=muted>需要跨源判断，才能成为一条发现。</div><ul>" +
                      "".join(f"<li>{escape(q)}</li>" for q in l["questions"]) + "</ul>" +
-                     "".join(f"<div class=muted><code>{escape(e['ref'])}</code> {escape(e['what'])}</div>" for e in l["evidence"]) + "</div>")
+                     "".join(f"<div class=muted><code>{escape(e['ref'])}</code> {escape(e['what'])}</div>" for e in l["evidence"]) +
+                     _judgment_note(judged.get(l["id"])) + "</div>")
         if not step_f and not step_l and key not in ("M1_visibility_attribution", "M2_ranking"):
             h.append("<p class=muted>确定性检测器在这一步没有发现。</p>")
 
@@ -124,7 +165,8 @@ def render(run: dict) -> str:
                      f"<td><code>{escape(', '.join(n['metrics']) or '—')}</code></td></tr>")
     h.append("</table></div>")
 
-    calls = Counter(f"{c['source']} {c['op']}" for c in run["trace"])
+    h.append(_llm_cost(run))
+    calls = Counter(f"{c['source']} {c['op']}" for c in run["trace"] if c["source"] != "llm")
     h.append("<h2>运行留痕 <span class=muted>· agent 发出的每一次调用</span></h2><div class=wrap><table><tr><th>调用</th><th class=num>次数</th></tr>" +
              "".join(f"<tr><td><code>{escape(k)}</code></td><td class=num>{v}</td></tr>" for k, v in sorted(calls.items())) + "</table></div>")
     h.append("</main></body></html>")
