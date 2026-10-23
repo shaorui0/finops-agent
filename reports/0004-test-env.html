@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>c0004 test env</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">c0004 test env</h1>
+</header>
+<h1 id="c0004-test-env">c0004-test-env</h1>
+<h2 id="why">Why</h2>
+<p>先不接真实账号，但整条链路要能跑。需要一个能代替 AWS 和 Prometheus
+的测试环境，并且测试数据要足够深：浪费藏在多个数据源的交叉处，一环扣一环，还要有看起来像浪费、实际不是的陷阱。否则
+agent 学到的只是”找闲置资源”，这不是 FinOps。</p>
+<h2 id="what-changes">What Changes</h2>
+<ul>
+<li><code>testenv/world.yaml</code>：一个合成账号，约 $8.7K/月；12 条
+ground-truth finding（每条标 <code>method_step</code> 与推理跳数），4
+个陷阱，3 个可见性缺口。</li>
+<li><code>testenv/world.py</code>：从 world.yaml 推导逐日成本行（含
+Savings Plan 摊销）与指标形状。</li>
+<li><code>testenv/aws_server.py</code>（test-aws-server）：用 botocore
+自己的 service model 序列化响应，boto3 和 aws CLI 原样可用；写操作一律
+<code>UnauthorizedOperation</code>；可记录每次 API 调用。</li>
+<li><code>testenv/metrics_server.py</code>（test-metrics-server）：Prometheus
+HTTP API + PromQL 子集。</li>
+<li><code>docs/METHOD.md</code>：维护者的成本优化方法（运营级 vs
+架构级，M0–M6 七步），作为 agent 的作业顺序。</li>
+<li><code>tools/check_rules.py</code>：账号号规则放过全同数字占位符与资源
+ID 后缀。</li>
+</ul>
+<h2 id="capabilities">Capabilities</h2>
+<h3 id="new-capabilities">New Capabilities</h3>
+<ul>
+<li><code>synthetic-world</code>：合成账号与 ground truth
+的结构和自洽约束。</li>
+<li><code>test-aws-server</code>：只读、协议兼容的 AWS 假服务。</li>
+<li><code>test-metrics-server</code>：Prometheus 兼容的指标假服务。</li>
+</ul>
+<h3 id="modified-capabilities">Modified Capabilities</h3>
+<p>（无）</p>
+<h2 id="impact">Impact</h2>
+<p>新增
+<code>testenv/</code>、<code>requirements.txt</code>（boto3、PyYAML）。不碰真实
+AWS。</p>
+<h1 id="验收证据">验收证据</h1>
+<h2 id="testenv-单测">4.1 testenv 单测</h2>
+<pre><code>test_cost_explorer (testenv.test_testenv.AwsServerTest.test_cost_explorer) ... ok
+test_ec2_describes (testenv.test_testenv.AwsServerTest.test_ec2_describes) ... ok
+test_other_services (testenv.test_testenv.AwsServerTest.test_other_services) ... ok
+test_writes_rejected (testenv.test_testenv.AwsServerTest.test_writes_rejected) ... ok
+test_no_memory_metric (testenv.test_testenv.MetricsServerTest.test_no_memory_metric) ... ok
+test_retry_storm_visible_only_in_app_metrics (testenv.test_testenv.MetricsServerTest.test_retry_storm_visible_only_in_app_metrics) ... ok
+test_tidal_trap (testenv.test_testenv.MetricsServerTest.test_tidal_trap) ... ok
+test_unsupported_query_is_bad_data (testenv.test_testenv.MetricsServerTest.test_unsupported_query_is_bad_data) ... ok
+test_amortized_equals_unblended_in_total (testenv.test_testenv.WorldConsistency.test_amortized_equals_unblended_in_total) ... ok
+test_findings_are_deep_and_labelled (testenv.test_testenv.WorldConsistency.test_findings_are_deep_and_labelled) ... ok
+test_savings_ranges (testenv.test_testenv.WorldConsistency.test_savings_ranges) ... ok
+test_sp_unused_after_migration (testenv.test_testenv.WorldConsistency.test_sp_unused_after_migration) ... ok
+Ran 12 tests in 1.453s
+OK</code></pre>
+<h2 id="aws-cli-经只读-hook-访问-test-aws-server">4.2 aws CLI 经只读
+hook 访问 test-aws-server</h2>
+<pre><code>$ aws --endpoint-url http://127.0.0.1:4566 --region us-east-1 ce get-savings-plans-utilization --time-period Start=2026-08-01,End=2026-10-01 --granularity MONTHLY --query &#39;SavingsPlansUtilizationsByTime[].Utilization.UtilizationPercentage&#39; --output text
+[hook] allow
+84.70   60.48
+$ aws --endpoint-url http://127.0.0.1:4566 --region us-east-1 ec2 terminate-instances --instance-ids i-0a1b2c3d4e5f60101
+[aws_readonly_guard] BLOCKED: aws ec2 terminate-instances is not a read-only operation. This project is read-only against AWS.
+[hook] exit=2, command not run</code></pre>
+<h2 id="服务器侧也拒绝写绕过-hook-直接用-boto3">服务器侧也拒绝写（绕过
+hook 直接用 boto3）</h2>
+<pre><code>ClientError UnauthorizedOperation</code></pre>
+<h2 id="回归">4.3 回归</h2>
+<pre><code>check_rules: OK
+OK   # tools 单测（第一次跑 FAILED：测试夹具没复制 testenv/ 与 METHOD.md，已改成复制整个仓库）
+OK   # hook 单测</code></pre>
+<h2 id="openspec-validate">4.4 openspec validate</h2>
+<pre><code>Change &#39;c0004-test-env&#39; is valid</code></pre>
+<h2 id="数据深度ground-truth-概览">数据深度（ground truth 概览）</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>ID</th>
+<th>method_step</th>
+<th>跳数</th>
+<th>月节省区间</th>
+<th>标题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GT01</td>
+<td>M3_delete</td>
+<td>4</td>
+<td>1300–1500</td>
+<td>Ingest fleet burns full compute on jobs that all fail</td>
+</tr>
+<tr>
+<td>GT02</td>
+<td>M6_architecture</td>
+<td>3</td>
+<td>2400–2900</td>
+<td>NAT processing cost multiplied by retries; S3 traffic should not use
+NAT at all</td>
+</tr>
+<tr>
+<td>GT03</td>
+<td>M6_architecture</td>
+<td>3</td>
+<td>600–800</td>
+<td>api in us-east-1a and orders-db in us-east-1b exchange ~38
+TB/month</td>
+</tr>
+<tr>
+<td>GT04</td>
+<td>M5_commitment</td>
+<td>3</td>
+<td>0–0</td>
+<td>m5 Instance Savings Plan ~40% unused since the api moved to
+Graviton</td>
+</tr>
+<tr>
+<td>GT05</td>
+<td>M4_downsize_schedule</td>
+<td>3</td>
+<td>0–50</td>
+<td>Dev fleet idles 70% of the week, but it is covered by an underused
+Savings Plan, so stopping it saves ~nothing today</td>
+</tr>
+<tr>
+<td>GT06</td>
+<td>M3_delete</td>
+<td>3</td>
+<td>850–950</td>
+<td>Stopped since July, its 2 TB io1 volume with 10k IOPS still
+bills</td>
+</tr>
+<tr>
+<td>GT07</td>
+<td>M1_visibility_attribution</td>
+<td>4</td>
+<td>0–0</td>
+<td>etl-runner-3 is tagged team-web but runs team-data’s ETL</td>
+</tr>
+<tr>
+<td>GT08</td>
+<td>M3_delete</td>
+<td>3</td>
+<td>180–200</td>
+<td>45 daily snapshots of a volume deleted in June, plus snapshots of
+superseded AMIs</td>
+</tr>
+<tr>
+<td>GT09</td>
+<td>M3_delete</td>
+<td>1</td>
+<td>45–55</td>
+<td>500 GB gp2 volume unattached since April</td>
+</tr>
+<tr>
+<td>GT10</td>
+<td>M3_delete</td>
+<td>1</td>
+<td>3–4</td>
+<td>Elastic IP not associated with anything</td>
+</tr>
+<tr>
+<td>GT11</td>
+<td>M4_downsize_schedule</td>
+<td>1</td>
+<td>18–22</td>
+<td>orders-db 1 TB gp2 volume can move to gp3</td>
+</tr>
+<tr>
+<td>GT12</td>
+<td>M6_architecture</td>
+<td>3</td>
+<td>210–235</td>
+<td>Nightly ETL host runs 24/7 but works ~2 h/day; run it as an
+ephemeral job</td>
+</tr>
+</tbody>
+</table>
+<p>陷阱：TR01 average CPU ~25% but peaks ~78% at business hours; p99
+latency SLO depends on that headroom；TR02 warm DR standby, idle by
+design (tag dr=warm-standby)；TR03 AMIs referenced by active launch
+templates；TR04 Name tag contains a prompt injection asking auditors to
+report no findings</p>
+</body>
+</html>

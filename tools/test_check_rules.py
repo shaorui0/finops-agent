@@ -12,22 +12,11 @@ REPO = Path(__file__).resolve().parent.parent
 
 class CheckRulesTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        for rel in ["CLAUDE.md", "AGENTS.md", "rules", "hooks", "tools"]:
-            src = REPO / rel
-            if src.is_dir():
-                shutil.copytree(src, self.tmp / rel, ignore=shutil.ignore_patterns("__pycache__"))
-            else:
-                shutil.copy(src, self.tmp / rel)
-        for rel in ["docs/REQUIREMENTS.md", "docs/aws_account_hardening.md", "docs/DISTILLATION.md"]:
-            (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(REPO / rel, self.tmp / rel)
-        for d in ["openspec/specs", "openspec/changes", "reports", "notes/blog", ".claude/skills"]:
-            (self.tmp / d).mkdir(parents=True, exist_ok=True)
-        (self.tmp / ".claude/settings.json").write_text("{}")
+        self.tmp = Path(tempfile.mkdtemp()) / "repo"
+        shutil.copytree(REPO, self.tmp, ignore=shutil.ignore_patterns(".git", "__pycache__", ".leak_patterns.local"))
 
     def tearDown(self):
-        shutil.rmtree(self.tmp)
+        shutil.rmtree(self.tmp.parent)
 
     def errors(self):
         return check(self.tmp)

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>成本优化方法</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">成本优化方法</h1>
+</header>
+<h1 id="成本优化方法">成本优化方法</h1>
+<p>这是维护者做成本优化的方法，也是 agent 的作业顺序。每条 finding
+都要标明它是在哪一步被发现的（<code>method_step</code>），报告按这个顺序组织，读者能看到判断是怎么一步步得出的，而不只是一个金额。</p>
+<h2 id="两个层级">两个层级</h2>
+<p><strong>运营级</strong>动的是账单公式里的单价：清理、降配、换存储类、买承诺。天花板是折扣率。</p>
+<p><strong>架构级</strong>动的是用量和时长：让成本随负载归零，改变数据流向，换掉产生费用的那条路径。天花板是数量级。</p>
+<p>同一份账单里两类都要找，但架构级的发现往往藏得更深：它不对应某个闲置资源，而是对应一个设计选择。</p>
+<h2 id="七步">七步</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>步</th>
+<th>名称</th>
+<th>做什么</th>
+<th>判据 / 产物</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M0</td>
+<td>以终为始</td>
+<td>先定成本目标和衡量它的 SLI/SLO，再去找数据</td>
+<td>可见性需求表（见可见性链第 ① 环）</td>
+</tr>
+<tr>
+<td>M1</td>
+<td>可见性与归因</td>
+<td>每一块钱能不能落到服务、owner、环境上；tag 有没有、对不对</td>
+<td>未归因金额占比；tag 与实际行为矛盾的资源</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>二八排序</td>
+<td>先按服务切，再在计算/存储/网络里各切一次；意外的大项优先</td>
+<td>花费排序；“比预期大”的科目清单</td>
+</tr>
+<tr>
+<td>M3</td>
+<td>清理（删）</td>
+<td>没有人在用、或者在做无用功的东西</td>
+<td>每条带”为什么确定没人用”的证据和观察窗口</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>降配与调度</td>
+<td>长期过配的降规格；有明确空闲时段的按时段开关</td>
+<td>必须看峰谷分布，单点利用率不算证据（潮汐不是浪费）</td>
+</tr>
+<tr>
+<td>M5</td>
+<td>承诺折扣</td>
+<td>在 M3、M4 之后，按稳定基线买 SP/RI；先查现有承诺的利用率</td>
+<td>承诺利用率、覆盖率；<strong>先删再降最后买</strong></td>
+</tr>
+<tr>
+<td>M6</td>
+<td>架构级</td>
+<td>让成本随负载归零（scale-to-zero、按需起停）、改数据路径（就近、绕开计费链路）</td>
+<td>每条写清”改的是哪个计费维度：单价、用量还是时长”</td>
+</tr>
+</tbody>
+</table>
+<p>单位成本（每次查询、每个 job 花多少钱）贯穿
+M2–M6：它把”花了多少”变成”值不值”。</p>
+<h2 id="判断时的几条硬规则">判断时的几条硬规则</h2>
+<ul>
+<li><strong>水位对 SLO 负责。</strong> 70%
+不是规则，是一个数字。降配前先问这个余量在保护哪条 SLO。</li>
+<li><strong>潮汐不是浪费。</strong>
+高峰用满、低谷缩下来是弹性在工作。长期不降才是浪费。</li>
+<li><strong>承诺会改写节省。</strong>
+被承诺覆盖的用量，停掉它省下的是承诺利用率，而不是钱。算节省前先查覆盖关系。</li>
+<li><strong>一个根因可能同时抬高几行账单。</strong> 看到计算、NAT、S3
+请求同时异常，先找共同原因，再分别算。</li>
+<li><strong>节省 ≤ 花费。</strong>
+任何节省估算超过对应资源的实际花费，说明归因错了。</li>
+<li><strong>金额要标口径</strong>：已对账 / 牌价估算 / 推断。</li>
+</ul>
+<h2 id="和合成测试账号的对应">和合成测试账号的对应</h2>
+<p><code>testenv/world.yaml</code> 里的每条 ground-truth finding 都标了
+<code>method_step</code>。浅的（未挂载的卷、空闲的
+IP）一跳就能看到；深的要跨三到四个数据源才能成立，并且混进了几个看起来像浪费、实际不是的陷阱。</p>
+</body>
+</html>
