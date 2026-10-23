@@ -3,7 +3,7 @@
 ## 5.1 make eval（replay，离线）
 ```
 $ make eval AWS_PORT=15566 PROM_PORT=15990 RUN=t1
-/Users/rshao/work/context-infrastructure/projects/finops-agent-wt/t1/runs/t1/report.html
+runs/t1/report.html
 python3 -m eval.score runs/t1/findings.json; status=$?; /Applications/Xcode.app/Contents/Developer/usr/bin/make stop; exit $status
 {"recall": 1.0, "savings_recall": 1.0, "precision": 1.0, "savings_accuracy": 0.9167, "step_agreement": 1.0, "depth": {"shallow_recall": 1.0, "deep_recall": 1.0}, "leads": 7}
 missed: 
