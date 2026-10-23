@@ -22,7 +22,7 @@ import yaml
 from finops_agent.llm import LLMClient
 
 ROOT = Path(__file__).resolve().parent.parent
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v3"
 
 INSTRUCTIONS = """You are designing the visibility requirements for an AWS cost-optimisation agent.
 Below is a business description of one AWS account and its cost goals (written in Chinese).
@@ -35,8 +35,8 @@ assume what exists there; say what you would need, not what you think is availab
 The monitoring system is Prometheus-style. For every needed signal give `name`: a regular expression over
 Prometheus metric names (full match), written from your general knowledge of common exporters, for example
 the CloudWatch exporter prefix `aws_<service>_<metric>` or application counters/histograms. Prefer a
-precise pattern, but end it with `.*` where the unit or statistic suffix (`_sum`, `_total`, `_bytes_sum`,
-`_seconds`, quantile names) is genuinely unknowable. Different exporters use different suffixes.
+precise pattern, but end it with `.*` where the unit or statistic suffix (for example `_sum` or `_total`)
+is genuinely unknowable. Different exporters use different suffixes.
 
 Every need has a `scope`: which resources must be covered for the SLI to be computable. Allowed values only:
   running_instances        every running EC2 instance
