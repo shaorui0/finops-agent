@@ -1,0 +1,45 @@
+{
+  "model": "sonnet",
+  "key": "5cb24a1ff34d4f82679516f11b2a2d22eecaa8a46dac2d78c8dc917723691f9e",
+  "prompt": "You are designing the visibility requirements for an AWS cost-optimisation agent.\nBelow is a business description of one AWS account and its cost goals (written in Chinese).\n\nTask: for every goal that can be measured by time-series signals, define the SLIs (service level indicators)\nneeded to measure it and to protect the cost decision behind it, and list the signals each SLI needs.\nWork goal-first: reason only from the goals. You have not been shown the monitoring system and must not\nassume what exists there; say what you would need, not what you think is available.\n\nThe monitoring system is Prometheus-style. For every needed signal give `name`: a regular expression over\nPrometheus metric names (full match), written from your general knowledge of common exporters, for example\nthe CloudWatch exporter prefix `aws_<service>_<metric>` or application counters/histograms. Prefer a\nprecise pattern, but end it with `.*` where the unit or statistic suffix (`_sum`, `_total`, `_bytes_sum`,\n`_seconds`, quantile names) is genuinely unknowable. Different exporters use different suffixes.\n\nEvery need has a `scope`: which resources must be covered for the SLI to be computable. Allowed values only:\n  running_instances        every running EC2 instance\n  nat_gateways             every NAT gateway\n  services:<a>,<b>         the listed services, by service name from the account description (comma list, no spaces)\nScope meaning: `running_instances` and `nat_gateways` are for infrastructure metrics keyed by instance or\ngateway. `services:` is for application-level metrics that the services themselves report, keyed by service.\nUse the one that matches where the signal is produced.\n\nGoals that are measured from the AWS API, billing data or resource tags rather than from time series\n(for example commitment utilisation, tag-based ownership, orphan resource age) go in `not_metric_observable`,\neach with a one-line reason. Do not invent a time-series signal for them.\n\nOutput exactly one JSON object, no prose, in this shape:\n{\"slis\": [{\"id\": \"snake_case_id\", \"decision\": \"<cost decision this SLI protects, one sentence, Chinese>\",\n           \"goals\": [\"G1\"],\n           \"need\": [{\"signal\": \"<what is measured, Chinese>\", \"name\": \"<regex>\", \"scope\": \"<allowed scope>\"}]}],\n \"not_metric_observable\": [{\"goal\": \"G5\", \"reason\": \"<one line, Chinese>\"}]}\nIf a goal names several separate things (for example two different traffic paths), each of them needs its\nown signal. Keep SLIs distinct and minimal: one SLI per cost decision, 1-3 needs each. Every metric goal must be\ncovered by at least one SLI.\n\n=== ACCOUNT AND COST GOALS ===\n# 这个账号的成本目标，只用业务语言写。\n# 来源：docs/METHOD.md（M0-M6 与硬规则）、docs/FINOPS_SLO.md（SLO 取值）。\n# 这里不出现任何 metric 名、标签名或 SLI 编号：从目标反推需要看到什么，是 LLM 要做的事。\n\naccount: |\n  一个中等规模的 AWS 账号，月花费约 8.7 千美元，单区域。\n  对外在线服务：web、api（有延迟 SLO，白天高峰、夜间低谷，潮汐明显）。\n  开发环境：web-dev（只在工作时间有人用）。\n  后台批处理：ingest-worker（持续摄入数据）、etl-runner（定时 ETL）。\n  共享成本：NAT 网关出口流量、跨可用区数据传输、Savings Plan 承诺费用。\n  监控系统是 Prometheus 风格的时序库；账单、资源清单、标签走 AWS API，不在时序库里。\n\ngoals:\n  - id: G1\n    目标: 已有证据、尚未处理的浪费，占总花费不超过 5%\n    业务含义: 要能确定「没人在用」的资源并停掉或删除；证据必须覆盖账号里所有在运行的机器，不能只看一部分\n  - id: G2\n    目标: 机器看起来忙，但干的活是白干，这种情况必须能被发现；成功的工作 / 尝试的工作 ≥ 95%\n    业务含义: CPU 高不等于有产出。下游出错时重试会把计算和流量一起放大，成本看着正常实际全是浪费\n  - id: G3\n    目标: 降配只在余量已知的前提下做，并且不砍掉对外服务的延迟 SLO 的保护余量\n    业务含义: 水位对 SLO 负责；70% 只是个数字。降配前要知道每个资源维度（算力、内存等）还剩多少，以及这个余量在保护哪条 SLO\n  - id: G4\n    目标: 高峰用满低谷缩下来不算浪费；只有长期空闲或有明确空闲时段的环境才调度或缩容\n    业务含义: 潮汐不是浪费。要能区分「按时段规律空闲」和「一直没人用」，区分依据是峰谷分布而不是单点利用率\n  - id: G5\n    目标: 承诺折扣（Savings Plan）利用率 ≥ 90%，并且在清理和降配之后才买新的\n    业务含义: 被承诺覆盖的用量，停掉它省下的是承诺利用率，不是钱；算节省前要先知道覆盖关系\n  - id: G6\n    目标: 共享成本可以归因到造成它的服务：NAT 处理的流量归到发出流量的工作负载；跨可用区数据传输归到通信双方的服务\n    业务含义: 目前大部分未归因花费是共享成本；没有归因规则，谁也不对这笔钱负责\n  - id: G7\n    目标: 单位工作的成本可以算出来，比如每个摄入 job、每处理一单位数据花多少钱\n    业务含义: 把「花了多少」变成「值不值」；分母必须是真实完成的工作量\n  - id: G8\n    目标: 成本异常从开始到第一次被报出来 ≤ 1 天\n    业务含义: 月底看账单发现 NAT 流量涨了五倍已经晚了；需要比账单更早的信号来触发巡检\n  - id: G9\n    目标: 带 owner 的花费占比 ≥ 90%；孤儿资源（卷、快照、IP）存在不超过 14 天\n    业务含义: 归属和孤儿来自资源清单和标签，不是运行时指标\n",
+  "text": "{\"slis\":[{\"id\":\"idle_resource_evidence\",\"decision\":\"判定机器是否无人使用从而停机或删除,证据需覆盖所有运行中的实例\",\"goals\":[\"G1\"],\"need\":[{\"signal\":\"每台实例CPU利用率\",\"name\":\"aws_ec2_cpuutilization_.*\",\"scope\":\"running_instances\"},{\"signal\":\"每台实例网络入站字节数\",\"name\":\"aws_ec2_network_in_.*\",\"scope\":\"running_instances\"},{\"signal\":\"每台实例网络出站字节数\",\"name\":\"aws_ec2_network_out_.*\",\"scope\":\"running_instances\"}]},{\"id\":\"useful_work_ratio\",\"decision\":\"识别忙但白干的负载(重试放大、下游出错),决定是修复而不是扩容或降配\",\"goals\":[\"G2\"],\"need\":[{\"signal\":\"成功完成的工作/请求数\",\"name\":\"(.*_)?(requests|jobs|tasks|operations)_(success|succeeded|completed).*_total.*\",\"scope\":\"services:web,api,ingest-worker,etl-runner\"},{\"signal\":\"尝试的工作/请求总数(含重试)\",\"name\":\"(.*_)?(requests|jobs|tasks|operations)_(attempt|attempts|attempted|total).*\",\"scope\":\"services:web,api,ingest-worker,etl-runner\"},{\"signal\":\"重试次数\",\"name\":\"(.*_)?(retries|retry)_.*total.*\",\"scope\":\"services:web,api,ingest-worker,etl-runner\"}]},{\"id\":\"rightsizing_headroom_slo\",\"decision\":\"仅在各资源维度余量已知且不侵蚀延迟SLO保护余量时才降配\",\"goals\":[\"G3\"],\"need\":[{\"signal\":\"实例CPU利用率峰值分布(各维度算力余量)\",\"name\":\"aws_ec2_cpuutilization_.*\",\"scope\":\"running_instances\"},{\"signal\":\"实例内存使用率(余量,需agent导出)\",\"name\":\"(node_memory_MemAvailable_bytes|node_memory_MemTotal_bytes|CWAgent_mem_used_percent.*|aws_cwagent_mem_used_percent.*)\",\"scope\":\"running_instances\"},{\"signal\":\"对外服务请求延迟分布(SLO保护)\",\"name\":\"(.*_)?http_request_duration_seconds.*\",\"scope\":\"services:web,api\"}]},{\"id\":\"tidal_vs_idle_pattern\",\"decision\":\"区分按时段规律空闲与长期空闲,仅对后者或有明确空闲时段的环境调度或缩容\",\"goals\":[\"G4\"],\"need\":[{\"signal\":\"长时间窗口内实例CPU利用率(峰谷分布)\",\"name\":\"aws_ec2_cpuutilization_.*\",\"scope\":\"running_instances\"},{\"signal\":\"服务请求量随时间变化(含web-dev使用时段)\",\"name\":\"(.*_)?(http_)?requests_total.*\",\"scope\":\"services:web,api,web-dev\"}]},{\"id\":\"nat_traffic_attribution\",\"decision\":\"把NAT处理流量归因到发出流量的工作负载,决定谁承担并优化该成本\",\"goals\":[\"G6\"],\"need\":[{\"signal\":\"NAT网关处理的字节数\",\"name\":\"aws_natgateway_bytes_out_to_destination_.*|aws_natgateway_bytes_in_from_source_.*|aws_natgateway_bytes_.*\",\"scope\":\"nat_gateways\"},{\"signal\":\"各实例出站网络字节数(定位发出流量的工作负载)\",\"name\":\"aws_ec2_network_out_.*\",\"scope\":\"running_instances\"}]},{\"id\":\"cross_az_attribution\",\"decision\":\"把跨可用区数据传输归因到通信双方服务,决定是否做同AZ亲和调整\",\"goals\":[\"G6\"],\"need\":[{\"signal\":\"服务间按目标服务/可用区划分的发送字节数\",\"name\":\"(.*_)?(client_|service_)?(sent|transmit|egress)_bytes_total.*\",\"scope\":\"services:web,api,ingest-worker,etl-runner\"}]},{\"id\":\"unit_cost_throughput\",\"decision\":\"以真实完成的工作量作分母计算单位成本,判断支出是否值得\",\"goals\":[\"G7\"],\"need\":[{\"signal\":\"完成的摄入job数/处理的数据量\",\"name\":\"(.*_)?(ingest|etl|jobs|records|bytes)_.*(processed|completed|succeeded).*_total.*\",\"scope\":\"services:ingest-worker,etl-runner\"}]},{\"id\":\"cost_anomaly_early_signal\",\"decision\":\"在账单之前以日内信号触发成本异常巡检\",\"goals\":[\"G8\"],\"need\":[{\"signal\":\"NAT网关处理流量的快速变化\",\"name\":\"aws_natgateway_bytes_.*\",\"scope\":\"nat_gateways\"},{\"signal\":\"实例网络出站流量的快速变化\",\"name\":\"aws_ec2_network_out_.*\",\"scope\":\"running_instances\"}]}],\"not_metric_observable\":[{\"goal\":\"G5\",\"reason\":\"Savings Plan利用率与覆盖关系来自账单/Cost Explorer API,不是时序指标\"},{\"goal\":\"G9\",\"reason\":\"owner占比与孤儿资源年龄来自资源清单和标签,不是运行时指标\"}]}",
+  "tokens_in": 57107,
+  "tokens_out": 1791,
+  "latency_ms": 13549.0,
+  "cost_usd": 0.0395365,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 4080,
+    "cache_read_input_tokens": 53025,
+    "output_tokens": 1791,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4080,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 1791,
+        "cache_read_input_tokens": 53025,
+        "cache_creation_input_tokens": 4080,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 4080
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "wall_ms": 19530.9
+}
