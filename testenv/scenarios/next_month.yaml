@@ -19,6 +19,9 @@ scenario:
   name: next_month
   base: ../world.yaml
   period: {start: "2026-10-01", end: "2026-11-01"}
+  story:
+    headline: "09 月报告之后，三个 finding 被清掉，团队又留下一个新的"
+    narrative: "team-web 删了 tmp-migration 卷并释放闲置 EIP，team-api 把 orders-db 的卷改成 gp3，三项在现网都已解决。同一时期 team-data 为恢复演练建了 restore-scratch 卷，没有挂载也没人认领。ingest 故障、NAT 账单、停机的 legacy 主机、孤儿快照和用不满的 Savings Plan 原样存在，已连续 {periods} 个周期没人处理。"
   expect:
     resolved:
       - "unattached_volume|vol-0orph00000000c001"
@@ -32,6 +35,135 @@ scenario:
       - "stopped_instance_storage|i-0a1b2c3d4e5f60801,vol-0leg000000000b001"
       - "orphan_snapshots|ami-ingest-v1,ami-ingest-v2,ami-ingest-v3,ami-ingest-v4,ami-ingest-v5,vol-0gone00000000d001"
       - "savings_plan_underutilized|sp-ec2-m5-01"
+    details:
+      "unattached_volume|vol-0orph00000000c001":
+        gt: GT09
+        status: >-
+          上个周期这张 {vol:vol-0orph00000000c001.size@base} GB gp2 卷处于 available，月费 {cost:vol-0orph00000000c001@base}。本周期账号里已查不到这张卷。
+        spec: >-
+          available 的卷存在不超过 {slo:orphan_max_age_days}，超期就删除。
+        diff: >-
+          差距已闭合：每月释放 {cost:vol-0orph00000000c001@base}。
+        runbook:
+          - "验证：[只读] `aws ec2 describe-volumes --volume-ids vol-0orph00000000c001` 返回 InvalidVolume.NotFound。"
+          - "验证：[只读] CloudTrail 查 DeleteVolume 事件，记录执行人与时间。"
+          - "确认：下次巡检该 key 变 resolved，remediation 工单关闭。"
+        prevention: |-
+          控制：卷随实例终止删除，tag policy 要求 expire-on。
+          告警：alert:FinOpsSLOViolated 覆盖 orphan_max_age_days。
+          节奏：每周巡检，保持孤儿年龄在限值内。
+      "idle_public_ip|eipalloc-0aa0000000000001":
+        gt: GT10
+        status: >-
+          上个周期这个未关联的 EIP 月费 {cost:eipalloc-0aa0000000000001@base}。本周期该分配已释放，账单没有对应行。
+        spec: >-
+          每个 EIP 都关联资源，否则释放。
+        diff: >-
+          差距已闭合：每月释放 {cost:eipalloc-0aa0000000000001@base}。
+        runbook:
+          - "验证：[只读] `aws ec2 describe-addresses` 里不再有该 AllocationId。"
+          - "验证：[只读] 确认 DNS 与白名单没有遗留引用。"
+          - "确认：下次巡检该 key 变 resolved。"
+        prevention: |-
+          控制：AWS Config 规则 eip-attached 持续检查。
+          告警：alert:FinOpsSLOViolated 覆盖 orphan_max_age_days。
+          节奏：每周巡检。
+      "gp2_to_gp3|vol-0db0000000000a001":
+        gt: GT11
+        status: >-
+          orders-db 的卷已用 modify-volume 在线改为 {vol:vol-0db0000000000a001.type}，本月 {cost:vol-0db0000000000a001}；上个周期是 gp2，{cost:vol-0db0000000000a001@base}。
+        spec: >-
+          同容量用 gp3。
+        diff: >-
+          现网已达成，每月少付 {gp_delta:vol-0db0000000000a001}。但 Terraform 代码仍写 gp2，这是下个周期回归的伏笔。
+        runbook:
+          - "验证：[只读] `describe-volumes-modifications` 状态为 completed，类型 gp3。"
+          - "处置：把 orders-db 栈的 Terraform 卷类型改成 gp3，让代码与现网一致 [需人工审批]。"
+          - "确认：`terraform plan` 对该卷无差异。"
+        prevention: |-
+          控制：先改 IaC 再改现网；模块默认 gp3。
+          告警：alert:FinOpsRegression，回退时立即触发。
+          节奏：每周看 regressed 列表。
+      "unattached_volume|vol-0new000000000e001":
+        gt: GT09
+        status: >-
+          team-data 的 restore-scratch 卷（{vol:vol-0new000000000e001.size} GB {vol:vol-0new000000000e001.type}）自 {vol:vol-0new000000000e001.created} 起 available，从未挂载，月费 {cost:vol-0new000000000e001}。
+        spec: >-
+          临时卷用完即删，或挂载并写明用途。
+        diff: >-
+          金额不大，但同一类浪费在清掉一张后又长出一张，说明缺的是机制，不是又一次手工清理。
+        runbook:
+          - "验证：[只读] `describe-volumes` 确认 state=available，tag owner=team-data。"
+          - "处置：请 team-data 确认是否还需要；不需要则先快照再删卷 [不可逆] [需人工审批]。"
+          - "确认：下次巡检该 key 变 resolved。"
+        prevention: |-
+          控制：恢复演练脚本结束时自动删除临时卷；tag policy 要求 expire-on，到期由清理任务处理。
+          告警：alert:FinOpsSLOViolated 覆盖 orphan_max_age_days。
+          节奏：每周巡检。
+      "misattributed_tags|i-0a1b2c3d4e5f60501":
+        gt: GT07
+        status: >-
+          etl-runner-3 的 service=web 与 owner=team-web 仍未更正，本月 {box:i-0a1b2c3d4e5f60501} 继续记在 team-web 名下，已持续 {periods} 个周期。
+        spec: >-
+          tag 与实际负载一致，指向 team-data。
+        diff: >-
+          无进展，归因错位的账单每个周期都重复一次。
+        runbook:
+          - "验证：[只读] `describe-instances` 复核 tags 与 launch template。"
+          - "处置：把更正 tag 排进 team-data 的 sprint [需人工审批] [可回滚]。"
+          - "确认：下次巡检 key 消失。"
+        prevention: |-
+          控制：launch template 固化 TagSpecifications，SCP 禁止手改 owner。
+          告警：alert:FinOpsSLOViolated 覆盖 attribution_coverage。
+          节奏：每周复核 remediation_age_days。
+      "stopped_instance_storage|i-0a1b2c3d4e5f60801,vol-0leg000000000b001":
+        gt: GT06
+        status: >-
+          legacy-reporting 仍停机，io1 卷本月 {cost:vol-0leg000000000b001}，已持续 {periods} 个周期且没有 owner。
+        spec: >-
+          停机超期的实例先快照再删卷，或登记保留理由。
+        diff: >-
+          每个周期重复支付 {cost:vol-0leg000000000b001}，没有任何进展。
+        runbook:
+          - "验证：[只读] 复核实例状态与卷 tag。"
+          - "处置：升级给架构负责人认领 owner，决定快照后删除 [不可逆] [需人工审批]。"
+          - "确认：下次巡检 key 消失。"
+        prevention: |-
+          控制：AWS Config 规则 ec2-stopped-instance；SCP 强制 owner tag。
+          告警：alert:FinOpsSLOViolated 覆盖 remediation_age_days。
+          节奏：每周看最老未关闭 finding。
+      "orphan_snapshots|ami-ingest-v1,ami-ingest-v2,ami-ingest-v3,ami-ingest-v4,ami-ingest-v5,vol-0gone00000000d001":
+        gt: GT08
+        status: >-
+          孤儿快照系列与旧 AMI 快照原样存在，每月 {snapvol:vol-0gone00000000d001} 加 {snapvol:gt:GT08}，DLM 策略仍指向已删除卷的 tag。
+        spec: >-
+          快照随源卷清理，旧 AMI 只保留被引用的版本。
+        diff: >-
+          {periods} 个周期没动，每个周期都在重复支付。
+        runbook:
+          - "验证：[只读] `describe-snapshots` 确认源卷不存在、AMI 未被引用。"
+          - "处置：先停 DLM 策略，再清理 [不可逆] [需人工审批]；TR03 的在用 AMI 不动。"
+          - "确认：快照数量下降。"
+        prevention: |-
+          控制：删卷流程同步移除 DLM 目标 tag；AMI 清理走自动策略。
+          告警：alert:FinOpsSLOViolated 覆盖 orphan_max_age_days。
+          节奏：每周巡检。
+      "savings_plan_underutilized|sp-ec2-m5-01":
+        gt: GT04
+        status: >-
+          Savings Plan 本月利用率 {sp_pct}，未用 {sp_unused}，到期日 {sp:end}。
+        spec: >-
+          commitment_utilization {slo:commitment_utilization}。
+        diff: >-
+          仍低于目标，{periods} 个周期都在支付未用承诺。
+        runbook:
+          - "验证：[只读] Cost Explorer 的 Savings Plans 利用率。"
+          - "处置：不加购；把可迁的 m5 负载迁入，或等到期 [需人工审批]。"
+          - "确认：利用率回升。"
+        prevention: |-
+          控制：换实例家族的迁移要走承诺影响检查。
+          告警：alert:FinOpsSLOViolated 覆盖 commitment_utilization。
+          节奏：每月关账后评审。
 
 set:
   account: {period: {start: "2026-10-01", end: "2026-11-01"}}
