@@ -10,8 +10,21 @@ from finops_agent.judge.prompt import STEPS, TYPES
 
 VERDICTS = ("waste", "not_waste", "insufficient_evidence")
 PROTECTIVE_TAG_KEYS = ("dr", "keep", "do-not-delete", "retain")   # intent tags: idle by design
-NUM = re.compile(r"(?<![\w.])\$?\d[\d,]*(?:\.\d+)?%?")
-DATE = re.compile(r"\d{4}-\d{2}(-\d{2})?")
+# Numeric grounding rules (every number in title / hops / reasoning must come from the lead's evidence):
+#   G1  tokens: a number is `[$]digits[,digits][.digits][%]`. It must not be glued to ASCII letters, digits or a dot on its left
+#       (so ids such as vol-0abc..., m5.2xlarge, p95, us-east-1a are not numbers), but it MAY follow a CJK character:
+#       "省了1500元" has the number 1500. (The first version used \w and silently skipped numbers glued to Chinese text.)
+#   G2  dates and clock times (2026-09-04, 09-04, 02:00) are removed first; they are facts about the calendar, not amounts.
+#   G3  identifier-like tokens (letters, then dash/dot/colon parts that contain a digit) are removed first.
+#   G4  the evidence numbers are those written in the brief's facts, candidates (value and description), signal and the
+#       resource-spend line. Text from `untrusted` (tags, names) is NEVER evidence: an injected "$99,999" grounds nothing.
+#   G5  match: |n - k| <= max(1% of |k|, half a unit of the last decimal place n was written with). "6" matches "6.0";
+#       "$1,468.8" matches 1468.80. A percentage n% also matches a ratio k = n/100, and a ratio matches a percentage.
+#   G6  no exemption by size: small integers ("4 台", "6 倍") are checked like any other number. (The first version exempted
+#       bare integers below 100 and accepted any n within 0.5 of a 3-digit k.)
+NUM = re.compile(r"(?<![A-Za-z0-9_.])\$?\d[\d,]*(?:\.\d+)?%?")
+DATE = re.compile(r"\d{4}-\d{2}(-\d{2})?|(?<![\d.])\d{1,2}-\d{2}(?![\d-])|\d{1,2}:\d{2}(:\d{2})?")
+IDENT = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:[-.:][A-Za-z0-9_]+)+|[A-Za-z]+\d[A-Za-z0-9_]*")
 
 
 class Rejected(Exception):
@@ -53,34 +66,40 @@ def extract_json(text: str) -> dict:
         raise Rejected(f"reply is not valid JSON: {e}")
 
 
-def _evidence_numbers(b: Brief) -> list:
-    nums = []
-    texts = [e.what for e in b.facts] + [f"{c.value:.2f} {c.desc}" for c in b.candidates] + [b.signal]
-    if b.resource_spend_usd is not None:
-        texts.append(f"{b.resource_spend_usd:.2f}")
-    for t in texts:
-        for m in NUM.finditer(DATE.sub("", t)):
-            nums.append(_num(m.group()))
-    return nums
+def _clean(t: str) -> str:
+    return IDENT.sub(" ", DATE.sub(" ", t))
 
 
 def _num(s: str) -> float:
     return float(s.strip("$%").replace(",", ""))
 
 
+def _decimals(raw: str) -> int:
+    body = raw.strip("$%").replace(",", "")
+    return len(body.split(".")[1]) if "." in body else 0
+
+
+def _evidence_numbers(b: Brief) -> list:
+    nums = []
+    texts = [e.what for e in b.facts] + [f"{c.value:.2f} {c.desc}" for c in b.candidates] + [b.signal]
+    if b.resource_spend_usd is not None:
+        texts.append(f"{b.resource_spend_usd:.2f}")
+    for t in texts:
+        for m in NUM.finditer(_clean(t)):
+            nums.append(_num(m.group()))
+    return nums
+
+
+def _matches(raw: str, k: float) -> bool:
+    n, half = _num(raw), 0.5 * 10 ** -_decimals(raw)
+    scaled = [(n, half), (n / 100, half / 100)] if raw.endswith("%") else [(n, half)] + ([(n * 100, half * 100)] if n <= 1 else [])
+    return any(abs(v - k) <= max(0.01 * abs(k), h) for v, h in scaled)
+
+
 def ungrounded_numbers(text: str, b: Brief) -> list:
-    """Numbers in free text that appear nowhere in the evidence. Small bare integers are exempt."""
+    """Numbers in free text that appear nowhere in the evidence (rules G1-G6 above)."""
     known = _evidence_numbers(b)
-    bad = []
-    for m in NUM.finditer(DATE.sub("", text)):
-        raw = m.group()
-        n = _num(raw)
-        if n < 100 and not raw.startswith("$") and not raw.endswith("%"):
-            continue
-        cands = [n, n / 100] if raw.endswith("%") else [n]
-        if not any(abs(c - k) <= max(0.01 * abs(k), 0.5 if k >= 100 else 0.006) or abs(c - k / 100) <= 0.006 for c in cands for k in known):
-            bad.append(raw)
-    return bad
+    return [m.group() for m in NUM.finditer(_clean(text)) if not any(_matches(m.group(), k) for k in known)]
 
 
 def validate(raw: str, b: Brief, protected: set | None = None) -> Judgment:
