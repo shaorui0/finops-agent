@@ -1,0 +1,31 @@
+# Scenario overlay, period 3 of 3: 2026-11, stacked on verify_month1.yaml.
+#
+# vol-0vfya is gone for the whole month (full realization of (a)); nothing grows any more (control drift 1.0);
+# team-data converts vol-0vfyd gp2 -> gp3 and keeps the performance it had: gp2 gives 3 IOPS/GB (9000) and up to
+# 250 MB/s, so the gp3 volume is provisioned with 9000 IOPS and 250 MB/s, which gp3 bills on top of the GB price.
+#
+# Expected state diff vs a run on verify_month1 (period 2026-10):
+#   resolved   gp2_to_gp3|vol-0vfyd
+scenario:
+  name: verify_month2
+  base: verify_month1.yaml
+  applied_claims: []
+  story:
+    headline: "11 月：删掉的卷整月为零；vol-0vfyd 改 gp3 并保留性能"
+    narrative: "vol-0vfya 整月不在账单。数据不再增长。vol-0vfyd 改 gp3，配 9000 IOPS 与 250 MB/s 以保持原性能，IOPS 与吞吐按 gp3 单价另计。"
+  expect:
+    resolved:
+      - "gp2_to_gp3|vol-0vfyd000000000001"
+    new: []
+    regressed: []
+
+set:
+  account: {period: {start: "2026-11-01", end: "2026-12-01"}}
+
+remove:
+  volumes: [vol-0vfya000000000001]
+
+patch:
+  instances:
+    i-0a1b2c3d4e5f60201:
+      volumes: [{id: vol-0vfyd000000000001, size: 3000, type: gp3, iops: 9000, throughput: 250, created: "2026-10-01T00:00:00Z"}]

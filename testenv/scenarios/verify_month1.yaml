@@ -1,0 +1,52 @@
+# Scenario overlay, period 2 of 3: 2026-10, stacked on verify_base.yaml.
+#
+# What happened after the 09 report:
+#   (a) team-data deleted vol-0vfya on 2026-10-11, in the middle of the period       -> proration
+#   (b) team-web put the 3 dev m5.2xlarge on a start/stop schedule (30% uptime)       -> absorbed by the Savings Plan
+#   (c) data grew 30% on every in-use volume; at the same time orders-db's vol-0vfyc
+#       was converted gp2 -> gp3 (and grew with the rest)                             -> usage drift
+#   (e) team-web released the idle EIP (a clean deletion, no deviation expected)
+#   (d) team-data created vol-0vfyd (3000 GB gp2) on 10-01; fixed in November (see verify_month2)
+#
+# Expected state diff vs a run on verify_base (period 2026-09):
+#   resolved   unattached_volume|vol-0vfya, idle_public_ip|eipalloc-..0001, gp2_to_gp3|vol-0vfyc
+#   new        gp2_to_gp3|vol-0vfyd
+#   (C01 is a claim, not an agent finding: it is resolved by the scenario action `applied_claims`.)
+scenario:
+  name: verify_month1
+  base: verify_base.yaml
+  applied_claims: [C01]
+  story:
+    headline: "10 月：期中删卷、dev 启停、数据增长 30% 同时改 gp3"
+    narrative: "vol-0vfya 在 10 月 11 日删除；dev 车队改成 30% 开机；所有在用卷增长 30%，orders-db 的 vol-0vfyc 同期改 gp3；闲置 EIP 被释放；新建了一张 3000 GB gp2 卷。"
+  expect:
+    resolved:
+      - "unattached_volume|vol-0vfya000000000001"
+      - "idle_public_ip|eipalloc-0aa0000000000001"
+      - "gp2_to_gp3|vol-0vfyc000000000001"
+    new:
+      - "gp2_to_gp3|vol-0vfyd000000000001"
+    regressed: []
+
+set:
+  account: {period: {start: "2026-10-01", end: "2026-11-01"}}
+
+remove:
+  addresses: [eipalloc-0aa0000000000001]
+
+patch:
+  volumes:
+    vol-0vfya000000000001: {deleted: "2026-10-11"}
+  instances:
+    i-0a1b2c3d4e5f60301:
+      volumes:
+        - {id: vol-0db0000000000a001, size: 1300, type: gp2}
+        - {id: vol-0vfyc000000000001, size: 2600, type: gp3}
+    i-0a1b2c3d4e5f60101: {volumes: [{id: vol-0vfyk000000000001, size: 3900, type: gp3}]}
+    i-0a1b2c3d4e5f60102: {volumes: [{id: vol-0vfyk000000000002, size: 3900, type: gp3}]}
+    i-0a1b2c3d4e5f60103: {volumes: [{id: vol-0vfyk000000000003, size: 3900, type: gp3}]}
+    i-0a1b2c3d4e5f60201:
+      volumes: [{id: vol-0vfyd000000000001, size: 3000, type: gp2, created: "2026-10-01T00:00:00Z"}]
+    i-0a1b2c3d4e5f60601: {uptime: {fraction: 0.3, since: "2026-10-01"}}
+    i-0a1b2c3d4e5f60602: {uptime: {fraction: 0.3, since: "2026-10-01"}}
+    i-0a1b2c3d4e5f60603: {uptime: {fraction: 0.3, since: "2026-10-01"}}
