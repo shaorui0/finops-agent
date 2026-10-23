@@ -1,183 +1,183 @@
 # finops-agent
 
-An AWS FinOps agent that finds cloud waste with evidence — and a worked example of building an LLM agent with specs, evals and guardrails.
+一个带证据找云上浪费的 AWS FinOps agent，同时也是一份用 spec、评估和护栏构建 LLM agent 的完整样例。
 
-Two parts. **Part 1** is FinOps: the domain model, and the model I use to optimize cost. **Part 2** is the agent: how it is designed, and the principles behind it. FinOps is the vehicle; Part 2 is the point.
+分两部分。**第一部分**是 FinOps：领域模型，以及我做成本优化的方法。**第二部分**是 agent：它怎么设计，背后的原则是什么。FinOps 是载体，第二部分才是重点。
 
 ```bash
 pip install -r requirements.txt
-make eval                    # fake AWS + fake Prometheus → agent run → score against ground truth
+make eval                    # 假 AWS + 假 Prometheus → 跑 agent → 对照标准答案打分
 open runs/local/report.html
 ```
 
-No AWS account needed. The synthetic account and the two test servers are described in [`testenv/README.md`](testenv/README.md).
+不需要 AWS 账号。合成账号和两个测试服务器见 [`testenv/README.md`](testenv/README.md)。
 
 ---
 
-## How I think about this agent
+## 我怎么思考这个 agent
 
-The questions I asked before writing code, and the answers that shaped it. Each traces to a numbered requirement in [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md).
+动手写代码之前我问了自己这些问题，回答决定了它现在的样子。每条都能追到 [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) 里编号的需求。
 
-| Question | How I answer it |
+| 问题 | 我的回答 |
 |---|---|
-| **Why build it?** | To practise and show agent engineering: making an agent controllable, measurable and improvable on a real system. Cost is a good vehicle because every company has the problem, the data is structured, and wrong answers have a price. (R1, R15) |
-| **Agent engineering vs agent development** | Development makes the model do the task. Engineering decides what it may touch, what it is told, how its output is checked, and how it gets better without regressing. Context sets the ceiling; the harness sets the floor. (R1, R6) |
-| **Where is the model weak?** | It hallucinates numbers, obeys text it should only read, and drifts from the path you meant. So: numbers come from code, resource metadata is treated as untrusted input (there is an injection in the test account), and the method fixes the path. (R6) |
-| **Judge or verify?** | The agent verifies; it does not pronounce. Every claim carries evidence, every amount a basis, and invariants reject answers that cannot be true, whoever produced them. (R7) |
-| **What does "better" mean?** | A number against ground truth: recall, savings-weighted recall, precision, trap violations. The baseline only moves up, and CI enforces it. (R7) |
-| **Why hard test data?** | An agent that only finds idle volumes is a script. Real waste sits where sources meet (cost × inventory × utilization × useful work), and real traps look like waste. The test account is built that way. (R2, R3) |
-| **Start from what?** | From the goal. First the SLIs a cost decision needs, then the search for metrics. Missing metrics are a finding. (R17, R19) |
-| **What happens after the cleanup?** | It decays. Cost health gets SLOs, a waste budget, alert rules and an inspection cadence, and every run diffs against the last one to catch regressions. (c0007) |
-| **How far does it act?** | Read-only, enforced twice (hook, IAM). Remediation stays a plan; commitments, which are the hardest to undo, stay a human decision. (R4, R16) |
-| **Process as deliverable** | Every change is a spec, staged commits, an acceptance run with evidence, an HTML report and raw notes, so the reasoning stays visible as well as the code. (R8, R9) |
-| **What stays private** | No employer data, ever. Synthetic data and a personal read-only account only; a leak scan runs on every commit. (constraints, REQUIREMENTS §4) |
+| **为什么做它？** | 练习并展示 agent 工程能力：让一个 agent 在真实系统上可控、可度量、可改进。成本是好载体：每家公司都有这个问题，数据是结构化的，答错有实际代价。（R1、R15） |
+| **agent 工程和 agent 开发有什么区别？** | 开发是让模型把事做成。工程是决定它能碰什么、被告知什么、输出怎么检查、怎样变好而不倒退。Context 决定上限，harness 决定下限。（R1、R6） |
+| **模型弱在哪？** | 会编数字，会听从本该只读的文本，会偏离你设定的路径。所以：数字由代码算，资源元数据按不可信输入处理（测试账号里埋了一条注入），方法论固定路径。（R6） |
+| **判断还是验证？** | agent 做验证，不下断言。每个结论带证据，每个金额带口径，不变量拒绝不可能成立的答案，不管答案是谁给的。（R7） |
+| **"更好"指什么？** | 对照标准答案的数字：召回率、按金额加权的召回率、精确率、踩陷阱次数。基线只升不降，CI 强制。（R7） |
+| **为什么测试数据要难？** | 只会找闲置卷的 agent 是个脚本。真实的浪费藏在数据源的交叉处（成本 × 资产 × 利用率 × 有效工作），真实的陷阱长得像浪费。测试账号就是这样造的。（R2、R3） |
+| **从哪开始？** | 从目标开始。先定成本决策需要的 SLI，再去找指标。缺失的指标本身就是一条发现。（R17、R19） |
+| **清理之后呢？** | 会腐烂。成本健康要有 SLO、浪费预算、告警规则和巡检节奏，每次运行都和上一次比对，抓复发。（c0007） |
+| **它能做到哪一步？** | 只读，两层强制（hook、IAM）。修复只出计划；最难撤回的承诺折扣永远由人决定。（R4、R16） |
+| **过程即交付** | 每个改动都是一份 spec、按阶段的 commit、带证据的验收、一份 HTML 报告和原始笔记。代码看得见，推理过程也看得见。（R8、R9） |
+| **什么保持私有** | 雇主数据一律不进。只用合成数据和个人只读账号；每次提交都跑泄漏扫描。（REQUIREMENTS §4 约束） |
 
 ---
 
-## Part 1 · FinOps
+## 第一部分 · FinOps
 
-### 1.1 Domain model
+### 1.1 领域模型
 
-Every cost line is **unit price × usage × duration**, attached (or not) to a **resource**, which is owned (or not) by a **service** and a **team**. Optimization moves one of the three factors; attribution decides who has to act.
+每一行成本都是 **单价 × 用量 × 时长**，挂在（或没挂在）某个**资源**上，资源归属（或不归属）某个**服务**和**团队**。优化就是动这三个因子中的一个；归因决定谁来动手。
 
-| Concept | What it is | Where the agent reads it |
+| 概念 | 是什么 | agent 从哪读 |
 |---|---|---|
-| Spend | Bill lines by service, usage type, resource, tag; unblended vs amortized | Cost Explorer |
-| Resource | Instances, volumes, snapshots, images, IPs, NAT gateways, launch templates, ASGs | EC2 / Auto Scaling APIs |
-| Ownership | `owner` / `service` / `env` tags, and the facts that can contradict them (launch template, ASG, metric labels) | Tags + inventory + metrics |
-| Pricing model | On-demand, Savings Plans / RIs (with utilization), list prices | Cost Explorer, Savings Plans API |
-| Usage signal | Utilization (CPU, network), and **useful work** (jobs succeeded, requests served) | Prometheus |
-| Constraint | The SLO a piece of capacity protects (latency headroom, DR standby) | Metrics + tags |
-| Shared cost | Lines with no resource: NAT processing, cross-AZ transfer, commitment fees | Cost Explorer usage types |
+| 花费 | 按服务、用量类型、资源、tag 拆分的账单行；unblended 与 amortized 两种口径 | Cost Explorer |
+| 资源 | 实例、卷、快照、镜像、IP、NAT 网关、启动模板、ASG | EC2 / Auto Scaling API |
+| 归属 | `owner` / `service` / `env` tag，以及可能和它们矛盾的事实（启动模板、ASG、指标标签） | tag + 资产 + 指标 |
+| 计价模式 | 按需、Savings Plan / RI（含利用率）、牌价 | Cost Explorer、Savings Plans API |
+| 用量信号 | 利用率（CPU、网络），以及**有效工作**（成功的 job、处理的请求） | Prometheus |
+| 约束 | 一份容量在保护的 SLO（延迟余量、DR 温备） | 指标 + tag |
+| 共享成本 | 不挂资源的行：NAT 处理费、跨 AZ 流量、承诺费用 | Cost Explorer 用量类型 |
 
-Waste comes in shapes that need different evidence:
+浪费有几种形态，各自需要不同的证据：
 
-| Shape | Example | Minimum evidence |
+| 形态 | 例子 | 最少需要的证据 |
 |---|---|---|
-| Idle | Unattached volume, unassociated IP | Inventory state |
-| Stranded | Volume of an instance stopped for months; snapshots of deleted volumes | Inventory join + cost |
-| Busy but useless | Fleet at 60% CPU whose jobs all fail | Cost + utilization + **work outcome** metrics |
-| Path cost | NAT bytes multiplied by retries; chatty services across AZs | Usage-type cost + topology + traffic metrics |
-| Stranded commitment | Savings Plan for a family the fleet migrated away from | Utilization history + inventory |
-| Misattribution | Host tagged to one team, running another team's job | Tags vs launch template vs metric labels |
-| **Not waste** | Tidal fleet with low average and real peaks; warm DR standby | Peak distribution, SLO, intent tags |
+| 闲置 | 未挂载的卷、未关联的 IP | 资产状态 |
+| 搁浅 | 停机数月的实例上的卷；已删卷的快照 | 资产关联 + 成本 |
+| 忙但无用 | CPU 60% 但 job 全部失败的 fleet | 成本 + 利用率 + **工作结果**指标 |
+| 路径成本 | 被重试放大的 NAT 字节；跨 AZ 频繁通信的服务 | 用量类型成本 + 拓扑 + 流量指标 |
+| 搁浅的承诺 | fleet 迁走后覆盖不到的 Savings Plan | 利用率历史 + 资产 |
+| 归因错误 | tag 写一个团队，实际跑另一个团队的任务 | tag vs 启动模板 vs 指标标签 |
+| **不是浪费** | 平均低、峰值真实的潮汐 fleet；DR 温备 | 峰值分布、SLO、意图 tag |
 
-### 1.2 How I optimize cost
+### 1.2 我怎么做成本优化
 
-Full method: [`docs/METHOD.md`](docs/METHOD.md).
+完整方法：[`docs/METHOD.md`](docs/METHOD.md)。
 
-**Two tiers.** Operational optimization changes unit price (delete, downsize, change storage class, buy commitments); its ceiling is the discount rate. Architectural optimization changes usage or duration (scale to zero, run batch as ephemeral jobs, change the data path); its ceiling is an order of magnitude. Both are in every bill; the architectural ones hide deeper.
+**两个层级。** 运营级优化动单价（删、降配、换存储类、买承诺），天花板是折扣率。架构级优化动用量或时长（缩到零、批任务改成临时任务、改数据路径），天花板是数量级。每份账单里两类都有，架构级的藏得更深。
 
-**Seven steps, in order.** M0 set cost goals and their SLIs before looking at data → M1 attribution → M2 80/20 ranking and surprises → M3 delete → M4 downsize / schedule → M5 commitments → M6 architecture. Delete before downsize before commit: buying commitment first locks waste in.
+**七步，按顺序。** M0 看数据之前先定成本目标和它的 SLI → M1 归因 → M2 二八排序与意外项 → M3 清理 → M4 降配与调度 → M5 承诺折扣 → M6 架构级。先删再降最后买：先买承诺等于给浪费上锁。
 
-**Hard rules.**
+**硬规则。**
 
-- Headroom answers to an SLO. "70%" is a number; ask which SLO it protects before cutting it.
-- A tide is not waste. Peaks that scale down are elasticity; capacity that never comes down is waste.
-- Commitments rewrite savings. Stopping usage covered by an under-used plan saves nothing.
-- One root cause can raise several bill lines. Find it before pricing each line.
-- Savings never exceed spend. If they do, attribution is wrong.
-- Every amount states its basis: billed, list price, or inferred.
-- A cleanup decays. Cost health needs SLOs, a waste budget, alerts and an inspection cadence, the same as reliability. See [`docs/FINOPS_SLO.md`](docs/FINOPS_SLO.md).
+- 余量对 SLO 负责。"70%"只是一个数字，砍之前先问它在保护哪条 SLO。
+- 潮汐不是浪费。峰值能降下来是弹性；一直降不下来的容量才是浪费。
+- 承诺会改写节省。停掉被一个用不满的 Savings Plan 覆盖的用量，省不到钱。
+- 一个根因可能抬高好几行账单。先找到它，再分别算钱。
+- 节省不会超过花费。超过了，说明归因错了。
+- 每个金额标明口径：已对账、牌价估算或推断。
+- 清理会腐烂。成本健康和可靠性一样，需要 SLO、浪费预算、告警和巡检节奏。见 [`docs/FINOPS_SLO.md`](docs/FINOPS_SLO.md)。
 
-### 1.3 Current results on the test account
+### 1.3 在测试账号上的当前结果
 
-| Metric | Value |
+| 指标 | 值 |
 |---|---|
-| Ground-truth findings recalled | 7 / 12 (all 3 shallow, 4 of 9 deep) |
-| Savings-weighted recall | 19% |
-| Precision · savings in range · method-step agreement | 100% · 100% · 100% |
-| Trap violations · invariant violations | 0 · 0 |
+| 标准答案发现的召回 | 7 / 12（浅层 3 条全中，深层 9 条中 4 条） |
+| 按金额加权的召回 | 19% |
+| 精确率 · 金额落在区间内 · 方法步骤一致 | 100% · 100% · 100% |
+| 踩陷阱 · 违反不变量 | 0 · 0 |
 
-The deterministic layer stops where cross-source judgment starts; those five findings are currently emitted as leads.
+确定性层停在需要跨源判断的地方；剩下五条目前以线索（lead）的形式交出。
 
 ---
 
-## Part 2 · The agent
+## 第二部分 · agent
 
-### 2.1 Design
+### 2.1 设计
 
 ```
-           ┌──────────── rules/ (soul, user, method, axioms) loaded every session ────────────┐
- AWS ──┐   │                                                                                   │
-       ├─► collect (read-only, every call traced) ─► frozen snapshot ─► deterministic detectors ─┼─► findings ─┐
- Prom ─┘          ▲                                     │                    │                   │            ├─► invariants ─► report (by method step)
-                  │                                     │                    └─► leads ─► judgment layer (LLM, next) ┘
-                  │                                     └─► visibility chain: ① needs → ② plan → ③ search → ④ gaps
-   hook + IAM: writes impossible                                                                 │
-                                                                    eval vs ground truth + traps ┴─► CI gate
+           ┌──────────── rules/（soul、user、方法、公理）每次会话加载 ───────────────┐
+ AWS ──┐   │                                                                        │
+       ├─► 采集（只读，每次调用留痕）─► 冻结快照 ─► 确定性检测器 ───────────────────┼─► 发现 ─┐
+ Prom ─┘          ▲                       │               │                         │         ├─► 不变量 ─► 报告（按方法步骤）
+                  │                       │               └─► 线索 ─► 判断层（LLM，下一步）┘
+                  │                       └─► 可见性链：① 需求 → ② 计划 → ③ 搜索 → ④ 缺口
+   hook + IAM：写操作做不到                                                         │
+                                                      对照标准答案 + 陷阱的评估 ────┴─► CI 闸门
 ```
 
-| Layer | Responsibility | Why it is separate |
+| 层 | 职责 | 为什么单独一层 |
 |---|---|---|
-| Collect | Pull inventory, cost, metrics; trace every call | The only layer that touches the outside world; read-only by construction |
-| Snapshot | Freeze inputs | Runs replay exactly; a wrong answer can be reproduced |
-| Detectors | Arithmetic and joins, one per method step | Every number recomputable; no model in the loop |
-| Leads | Signals that need cross-source judgment, with open questions | The model gets questions and evidence, not raw dumps |
-| Judgment (next) | Answer leads, classify, explain, plan | Where an LLM adds value, and where it is evaluated |
-| Invariants | Savings ≤ spend, basis required, evidence required | Catches wrong answers whoever produced them |
-| Visibility chain | Goal-first metric requirements → plan → search → gaps | Missing metrics are findings too |
-| Eval | Score against ground truth; traps; regression baseline | "Better" is a number, and CI enforces it |
-| SLO & rot | SLIs per run, waste budget, new / persisting / resolved / regressed across runs, Prometheus export + alert rules | A cleanup decays; the next run must notice |
+| 采集 | 拉资产、成本、指标；每次调用留痕 | 唯一接触外部世界的层，从构造上就是只读 |
+| 快照 | 冻结输入 | 运行可以精确重放；答错了能复现 |
+| 检测器 | 算术和关联，每个对应一个方法步骤 | 每个数字可复算；这一层没有模型 |
+| 线索 | 需要跨源判断的信号，附待回答的问题 | 模型拿到的是问题和证据，不是原始数据堆 |
+| 判断（下一步） | 回答线索、分类、解释、出计划 | LLM 真正产生价值的地方，也是被评估的地方 |
+| 不变量 | 节省 ≤ 花费、必须有口径、必须有证据 | 不管答案是谁给的，错的都会被拦下 |
+| 可见性链 | 目标优先的指标需求 → 计划 → 搜索 → 缺口 | 缺失的指标也是发现 |
+| 评估 | 对照标准答案打分；陷阱；回归基线 | "更好"是一个数字，CI 强制 |
+| SLO 与腐烂 | 每次运行算 SLI、浪费预算、跨运行的新增 / 持续 / 已解决 / 复发，导出 Prometheus 指标 + 告警规则 | 清理会腐烂，下一次运行必须察觉 |
 
-### 2.2 Design principles
+### 2.2 设计原则
 
-Each principle is a project axiom with a concrete enforcement point ([`rules/axioms/`](rules/axioms/INDEX.md)).
+每条原则都是一条项目公理，并且有具体的落地点（[`rules/axioms/`](rules/axioms/INDEX.md)）。
 
-| Principle | Enforced by |
+| 原则 | 靠什么落实 |
 |---|---|
-| Verifiable before correct | Evidence on every finding; ground-truth eval |
-| Isolate → process → verify | Read-only collection, frozen snapshot, dry-run plans only |
-| Data over opinion | Detectors compute; the model never does arithmetic |
-| Errors cascade | `savings ≤ spend` invariant; amounts carry their basis |
-| The agent is an unreliable component; SRE is its shell | Hook, server-side write rejection, IAM, eval gate |
-| Responsibility is not delegated | Writes need a human; reports separate fact from inference |
-| Start from the end | Visibility chain ring ① before any metric lookup |
-| Context isolation | Leads carry exactly the evidence a judgment needs |
-| Docs are memory | Rules layer, OpenSpec changes, notes per change |
+| 可验证先于正确 | 每条发现带证据；对照标准答案评估 |
+| 隔离、处理、验证 | 只读采集、冻结快照、只出 dry-run 计划 |
+| 数据优于观点 | 检测器负责计算；模型从不做算术 |
+| 误差会级联放大 | `节省 ≤ 花费` 不变量；金额带口径 |
+| agent 是不可靠组件，SRE 是它的外壳 | hook、服务端拒绝写、IAM、评估闸门 |
+| 责任不能委派 | 写操作需要人；报告区分事实与推断 |
+| 以终为始 | 查任何指标之前先走可见性链第 ① 环 |
+| 上下文隔离 | 每条线索只带判断它所需的证据 |
+| 文档即记忆 | 规则层、OpenSpec 改动、每个改动一份笔记 |
 
-### 2.3 How it is built
+### 2.3 怎么构建
 
-| Practice | Where |
+| 实践 | 在哪 |
 |---|---|
-| Spec-driven changes, committed in stages (proposal → spec → impl → docs → acceptance) | [`openspec/changes/`](openspec/changes/), `git log` |
-| Acceptance per change: evidence, HTML report, raw notes; CI runs check → test → eval | [`reports/`](reports/), [`notes/blog/`](notes/blog/), [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
-| Guardrails in two layers | [`hooks/`](hooks/), [`docs/aws_account_hardening.md`](docs/aws_account_hardening.md) |
-| Rules distilled from a private workspace | [`docs/DISTILLATION.md`](docs/DISTILLATION.md) |
-| Coverage of harness practices, done and not done | [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) §5 |
+| spec 驱动的改动，按阶段提交（proposal → spec → impl → docs → acceptance） | [`openspec/changes/`](openspec/changes/)、`git log` |
+| 每个改动的验收：证据、HTML 报告、原始笔记；CI 跑 check → test → eval | [`reports/`](reports/)、[`notes/blog/`](notes/blog/)、[`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
+| 两层护栏 | [`hooks/`](hooks/)、[`docs/aws_account_hardening.md`](docs/aws_account_hardening.md) |
+| 从私有工作区蒸馏出的规则层 | [`docs/DISTILLATION.md`](docs/DISTILLATION.md) |
+| harness 实践覆盖面：做了的和没做的 | [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md) §5 |
 
-### 2.4 Progress
+### 2.4 进度
 
-One row per change, appended at acceptance. Full trail: `git log`, `openspec/changes/<id>/`.
+每个改动验收时追加一行。完整轨迹：`git log`、`openspec/changes/<id>/`。
 
-| Change | Date | What | Takeaway | Report · Notes |
+| 改动 | 日期 | 做了什么 | 收获 | 报告 · 笔记 |
 |---|---|---|---|---|
-| 0000-init | 10-23 | Repo skeleton, requirements, change-loop skill | Interview on one thing: one project proves both the domain (FinOps) and agent engineering | [report](reports/0000-requirements.html) · [notes](notes/blog/0000-init.md) |
-| c0001-requirements-v2 | 10-23 | Requirements v2 + read-only AWS hook | Guardrails before the first line of business code: write down what it must not do | [report](reports/0001-requirements-v2.html) · [notes](notes/blog/0001-requirements-v2.md) |
-| c0002-visibility-chain | 10-23 | Coverage matrix + visibility chain | Start from the SLI the cost goal needs, then look for metrics — not the other way round | [report](reports/0002-visibility-chain.html) · [notes](notes/blog/0002-visibility-chain.md) |
-| c0003-project-rules | 10-23 | Project rules layer, distilled from a private workspace | Distilling is deleting: 11 of 50 axioms kept, each with how it lands here | [report](reports/0003-project-rules.html) · [notes](notes/blog/0003-project-rules.md) |
-| c0004-test-env | 10-24 | Synthetic account + fake AWS / Prometheus servers | Test data is hard because of where waste hides, not scale: idle-only detectors find < $100 of $8.7K/mo | [report](reports/0004-test-env.html) · [notes](notes/blog/0004-test-env.md) |
-| c0005-pipeline-skeleton | 10-24 | collect → snapshot → detectors → visibility chain → report | Deterministic layer hits 7/12; the other 5 need cross-source judgment and are handed over as Leads | [report](reports/0005-pipeline-skeleton.html) · [notes](notes/blog/0005-pipeline-skeleton.md) |
-| c0006-eval-ci | 10-24 | Scorer vs ground truth, regression baseline, Makefile, GitHub Actions; README in two parts | The first bugs the eval caught were in the scorer: a loose match inflated recall by 8 points | [report](reports/0006-eval-ci.html) · [notes](notes/blog/0006-eval-ci.md) |
-| c0007-finops-slo | 10-24 | FinOps SLOs, waste budget, 11 alert rules with promtool tests, rot detection across runs, inspection cadence | A cleanup decays: the NAT anomaly took 27 days to surface, so inspection has to be daily | [report](reports/0007-finops-slo.html) · [notes](notes/blog/0007-finops-slo.md) · [doc](docs/FINOPS_SLO.md) |
+| 0000-init | 10-23 | 仓库骨架、需求、change-loop skill | 面试只面一个东西：一个项目同时证明领域（FinOps）和 agent 工程 | [报告](reports/0000-requirements.html) · [笔记](notes/blog/0000-init.md) |
+| c0001-requirements-v2 | 10-23 | 需求 v2 + AWS 只读 hook | 第一行业务代码之前先装护栏：先写下它不能做什么 | [报告](reports/0001-requirements-v2.html) · [笔记](notes/blog/0001-requirements-v2.md) |
+| c0002-visibility-chain | 10-23 | 覆盖面矩阵 + 可见性链 | 先定成本目标需要的 SLI，再找指标，顺序不能反 | [报告](reports/0002-visibility-chain.html) · [笔记](notes/blog/0002-visibility-chain.md) |
+| c0003-project-rules | 10-23 | 从私有工作区蒸馏出项目规则层 | 蒸馏就是删：50 条公理留 11 条，每条写明在这里怎么落地 | [报告](reports/0003-project-rules.html) · [笔记](notes/blog/0003-project-rules.md) |
+| c0004-test-env | 10-24 | 合成账号 + 假 AWS / Prometheus 服务器 | 测试数据难在浪费藏在哪，不在规模：只找闲置的检测器在 $8.7K/月里只找到不到 $100 | [报告](reports/0004-test-env.html) · [笔记](notes/blog/0004-test-env.md) |
+| c0005-pipeline-skeleton | 10-24 | 采集 → 快照 → 检测器 → 可见性链 → 报告 | 确定性层命中 7/12；另外 5 条需要跨源判断，作为线索交出 | [报告](reports/0005-pipeline-skeleton.html) · [笔记](notes/blog/0005-pipeline-skeleton.md) |
+| c0006-eval-ci | 10-24 | 对照标准答案的打分器、回归基线、Makefile、GitHub Actions；README 分两部分 | 评估抓到的第一批 bug 在打分器里：宽松匹配让召回虚高 8 个点 | [报告](reports/0006-eval-ci.html) · [笔记](notes/blog/0006-eval-ci.md) |
+| c0007-finops-slo | 10-24 | FinOps SLO、浪费预算、11 条告警规则（promtool 测试）、跨运行腐烂检测、巡检节奏 | 清理会腐烂：NAT 异常隔了 27 天才被发现，所以巡检必须每天跑 | [报告](reports/0007-finops-slo.html) · [笔记](notes/blog/0007-finops-slo.md) · [文档](docs/FINOPS_SLO.md) |
 
-### 2.5 Repo layout
+### 2.5 目录
 
-| Path | Purpose |
+| 路径 | 用途 |
 |---|---|
-| `finops_agent/` | The pipeline: collect → snapshot → detectors → visibility chain → report |
-| `testenv/` | Synthetic account + test-aws-server + test-metrics-server |
-| `eval/` | Scorer against ground truth + regression baseline |
-| `config/` | Visibility requirements (ring 1), FinOps SLOs, alert rules (`config/alerts/`) |
-| `ops/` | Inspection cadence (`crontab.example`) |
-| `docs/` | Requirements, method, distillation, AWS hardening |
-| `rules/` | Project rules layer |
-| `hooks/` | Guardrails (registered in `.claude/settings.json`) |
-| `openspec/` | Specs and change history |
-| `.claude/skills/` | Project skills (`finops-change-loop` + OpenSpec skills) |
-| `reports/`, `notes/blog/` | Per-change HTML reports and raw notes |
-| `tools/` | Repo self-checks (`check_rules.py`: rules integrity + leak scan) |
+| `finops_agent/` | 流水线：采集 → 快照 → 检测器 → 可见性链 → 报告 |
+| `testenv/` | 合成账号 + test-aws-server + test-metrics-server |
+| `eval/` | 对照标准答案的打分器 + 回归基线 |
+| `config/` | 可见性需求（第 ① 环）、FinOps SLO、告警规则（`config/alerts/`） |
+| `ops/` | 巡检节奏（`crontab.example`） |
+| `docs/` | 需求、方法、蒸馏来源、AWS 加固 |
+| `rules/` | 项目规则层 |
+| `hooks/` | 护栏（注册在 `.claude/settings.json`） |
+| `openspec/` | 规格与改动历史 |
+| `.claude/skills/` | 项目 skill（`finops-change-loop` + OpenSpec skill） |
+| `reports/`、`notes/blog/` | 每个改动的 HTML 报告和原始笔记 |
+| `tools/` | 仓库自检（`check_rules.py`：规则层完整性 + 泄漏扫描） |
 
-## License
+## 许可证
 
-MIT — see [`LICENSE`](LICENSE).
+MIT，见 [`LICENSE`](LICENSE)。
