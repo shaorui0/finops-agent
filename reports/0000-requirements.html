@@ -326,10 +326,20 @@ commit 的交付物；按阶段展示，不一次性端出</td>
 <td>主页仓库 + 本项目</td>
 </tr>
 <tr>
+<td>R19</td>
+<td>可见性<strong>以终为始</strong>、一环套一环：先分析要什么可见性，第二轮去系统里找对应
+metric；找 metric
+本身也是一个有计划、有结果的任务；最后判断每个指标能否支撑 SLA/SLI</td>
+<td>2348</td>
+<td>本项目，D1b</td>
+</tr>
+<tr>
 <td>R15</td>
 <td><strong>项目目的是学 Harness Engineering 最佳实践、体现对 AI Agent
-的掌控力</strong>，不是为做而做，也不只为解决成本问题。取舍冲突时，过程的可展示性优先于功能广度</td>
-<td>2341</td>
+的掌控力</strong>，不是为做而做，也不只为解决成本问题。取舍冲突时，过程的可展示性优先于功能广度
+；并且要覆盖<strong>工业级使用 agent
+的方方面面</strong>，本项目就是那个完整样例（覆盖面见 §5）</td>
+<td>2341、2347</td>
 <td>全局原则</td>
 </tr>
 </tbody>
@@ -393,10 +403,13 @@ prompt 注入；无证据数字（幻觉）检测</td>
 </tr>
 <tr>
 <td>D1b</td>
-<td>可见性缺口分析：agent 先列所需 metric，再查本地 Grafana /
-数据源里有没有，输出缺口表</td>
-<td>缺口表每行有「需要的理由」和「查询证据」</td>
-<td>R17</td>
+<td><strong>可见性链（以终为始）</strong>，四环，每环单独产出、单独验收，上一环的结果是下一环的输入：①
+从成本目标反推需要哪些可见性（成本 SLO/SLI 是什么）② 制定找 metric
+的计划（去哪找、怎么查）③ 执行计划，产出 metric 清单（含查询证据）④ 逐个
+metric 判断能否支撑某个 SLI，差集即缺口</td>
+<td>每环一份产物 + 验收；缺口表每行有「为哪个 SLI
+需要」和「查询证据」</td>
+<td>R17 R19</td>
 </tr>
 <tr>
 <td>D5</td>
@@ -464,44 +477,89 @@ savings 比花费本身还大（资源重复计 + 单价错）。在这里它直
 验收（测试/eval）→ HTML 报告 + 博客笔记 → 一个 commit。流程写在
 <code>.claude/skills/finops-change-loop/SKILL.md</code>。</li>
 </ul>
-<h2 id="agent-engineer-叙事映射d7-的骨架">5. Agent Engineer 叙事映射（D7
-的骨架）</h2>
+<h2 id="harness-engineering-覆盖面r15-的验收清单也是-d7-的骨架">5.
+Harness Engineering 覆盖面（R15 的验收清单，也是 D7 的骨架）</h2>
+<p>工业级使用 agent 的各个面，每一面都要在本项目里有可指认的实现。状态随
+change 更新。</p>
 <table>
 <colgroup>
-<col style="width: 50%" />
-<col style="width: 50%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
 </colgroup>
 <thead>
 <tr>
-<th>面试主题</th>
-<th>在本项目里的证据</th>
+<th>面</th>
+<th>本项目里的实现</th>
+<th>状态</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Context engineering（上限）</td>
-<td><code>context/</code> 蒸馏层；FinOps 领域模型作为 context 喂给
-agent</td>
+<td>FinOps 领域模型作为 context；<code>context/</code> 蒸馏层（D5）</td>
+<td>计划</td>
 </tr>
 <tr>
-<td>Harness（下限）</td>
-<td>只读边界、注入隔离、写操作 gate</td>
-</tr>
-<tr>
-<td>幻觉 / 注入</td>
-<td>D3 用例集 + 无出处数字检测</td>
-</tr>
-<tr>
-<td>评估与迭代</td>
-<td>D2 golden set + 指标 + 每次 change 的前后对比</td>
+<td>权限与边界（下限）</td>
+<td>项目 hook <code>aws_readonly_guard.py</code> + AWS 侧 H1–H7</td>
+<td>hook ✅ c0001；AWS 侧待建</td>
 </tr>
 <tr>
 <td>Spec 驱动</td>
-<td>OpenSpec change 历史 = 设计决策留痕</td>
+<td>每个 change 一个 OpenSpec change，proposal/spec/tasks/evidence
+留痕</td>
+<td>✅ 从 c0001 起</td>
 </tr>
 <tr>
-<td>自动化 loop</td>
-<td>被动：CI / hook；主动：cron（D5）</td>
+<td>任务分解 / 计划</td>
+<td>可见性链四环（D1b），每环先计划后执行</td>
+<td>计划</td>
+</tr>
+<tr>
+<td>工具设计</td>
+<td>确定性脚本拉数和计算，LLM 只做判断层</td>
+<td>计划</td>
+</tr>
+<tr>
+<td>评估</td>
+<td>golden set + 指标 + <code>savings ≤ spend</code> 不变量（D2）</td>
+<td>计划</td>
+</tr>
+<tr>
+<td>幻觉 / 注入防御</td>
+<td>D3 用例集；无出处数字检测</td>
+<td>计划</td>
+</tr>
+<tr>
+<td>人工 gate / 回滚</td>
+<td>写路径只出 plan，人工确认后执行（D4）</td>
+<td>计划</td>
+</tr>
+<tr>
+<td>验收 loop</td>
+<td>被动：hook / 单测 / CI；主动：cron 回归（D5）</td>
+<td>单测 ✅；CI、cron 待建</td>
+</tr>
+<tr>
+<td>可观测性（agent 自身）</td>
+<td>每次运行留 trace：调用了哪些工具、花了多少 token / API 费</td>
+<td>待设计</td>
+</tr>
+<tr>
+<td>多 agent 编排</td>
+<td>可见性链各环可分派 subagent，主 agent 只合并</td>
+<td>待设计</td>
+</tr>
+<tr>
+<td>记忆 / 知识沉淀</td>
+<td>公理蒸馏进 <code>context/</code>；每 change 一份博客笔记</td>
+<td>笔记 ✅；蒸馏待建</td>
+</tr>
+<tr>
+<td>可展示性</td>
+<td>每 change 一份 HTML 报告；主页阶段页（D8）</td>
+<td>报告 ✅；主页待建</td>
 </tr>
 </tbody>
 </table>
@@ -533,11 +591,29 @@ agent</td>
 </tr>
 </tbody>
 </table>
-<h2 id="待确认">7. 待确认</h2>
-<ul>
-<li>Q5 个人主页是哪个仓库？<code>blog-system</code> 部署在
-<code>shaorui0.github.io/tech</code>，根域名
-<code>shaorui0.github.io</code> 的仓库没在本地找到。</li>
-</ul>
+<h2 id="已确认2348-之后">7. 已确认（23:48 之后）</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Q</th>
+<th>决定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q5 主页</td>
+<td><code>https://shaorui0.github.io/#/cn</code>。源码在
+context-infrastructure 的
+<code>projects/career_interview/resume_site</code>（<code>content/*.md</code>
+是事实源，<code>build_content.py</code> 构建），部署仓库
+<code>shaorui0/shaorui0.github.io</code>。D8 在这里加 FinOps Agent
+入口</td>
+</tr>
+</tbody>
+</table>
 </body>
 </html>
