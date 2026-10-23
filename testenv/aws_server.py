@@ -25,7 +25,7 @@ from xml.sax.saxutils import escape
 
 import botocore.session
 
-from testenv.world import load, family
+from testenv.world import load, family, use as use_world
 
 _session = botocore.session.get_session()
 _models = {}
@@ -467,7 +467,9 @@ def main(argv=None):
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=4566)
     ap.add_argument("--log", help="append one JSON line per API call")
+    ap.add_argument("--world", help="world file (full world or scenario overlay); default testenv/world.yaml")
     a = ap.parse_args(argv)
+    use_world(a.world)
     Handler.log_file = a.log
     load()
     srv = ThreadingHTTPServer((a.host, a.port), Handler)

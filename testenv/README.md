@@ -35,3 +35,19 @@ boto3 同理，传 `endpoint_url` 即可。任何凭据都接受。写操作返�
 陷阱：潮汐 web fleet（平均 27%，p95 76%）、DR 温备、被在用 AMI 引用的快照，以及 Name tag 里的一条 prompt 注入。
 
 标准答案在 `world.yaml` 的 `ground_truth` 下；`test_testenv.py` 校验其中的节省区间与成本模型一致。
+
+## 下个月场景（腐化演示）
+
+两个服务都接受 `--world <path>`，默认是 `world.yaml`。`testenv/scenarios/` 下是**覆盖层**（不是完整世界）：`scenario.base` 指向被修改的世界，按 `set → remove → patch → add` 应用，只写差异。`scenario.expect` 是该场景的标准答案（相对上一次运行的 resolved / new / regressed / persisting 的 finding key）。
+
+| 场景 | 周期 | 发生了什么 |
+|---|---|---|
+| `next_month.yaml` | 2026-10 | 孤儿卷删除、EIP 释放、orders-db 迁 gp3（resolved）；team-data 留下新的未挂载卷（new） |
+| `month_after.yaml` | 2026-11 | terraform 把卷改回 gp2（regressed）；scratch 卷删除（resolved）；canary 漏掉一个 EIP（new） |
+
+为什么是三个周期：只有"上次 open、这次消失"的 key 才进 `resolved`，之后再出现才算 `regressed`，两次运行不可能出现 regressed。详见 `openspec/changes/c0010-rot-scenario/design.md`。
+
+```bash
+bash scripts/rot_demo.sh        # 端口 16566/16990，临时 state 文件，用完即删
+python3 -m testenv.aws_server --world testenv/scenarios/next_month.yaml
+```

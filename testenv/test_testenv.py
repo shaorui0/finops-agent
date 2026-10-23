@@ -147,5 +147,122 @@ class MetricsServerTest(unittest.TestCase):
             self.assertEqual(json.load(e)["errorType"], "bad_data")
 
 
+
+# ---- scenarios: --world loading and self-consistency -------------------------
+import tempfile
+from argparse import Namespace
+from pathlib import Path
+
+import yaml
+
+from testenv import world as world_mod
+
+SCEN = Path(world_mod.__file__).parent / "scenarios"
+NEXT, AFTER = SCEN / "next_month.yaml", SCEN / "month_after.yaml"
+
+
+class WorldSelection(unittest.TestCase):
+    def tearDown(self):
+        world_mod.use(None)
+
+    def test_default_is_base_and_unchanged_by_scenarios(self):
+        base = load()
+        load(NEXT)
+        self.assertIs(load(), base)
+        self.assertEqual(base.period[0].isoformat(), "2026-09-01")
+        self.assertNotIn("scenario", base.raw)
+
+    def test_overlay_only_changes_what_it_names(self):
+        b, n = load().raw, load(NEXT).raw
+        self.assertEqual(n["ground_truth"], b["ground_truth"])
+        self.assertEqual(n["prices"], b["prices"])
+        self.assertEqual({i["id"] for i in n["instances"]}, {i["id"] for i in b["instances"]})
+        self.assertEqual(n["scenario"]["name"], "next_month")
+        self.assertEqual(load(NEXT).period[0].isoformat(), "2026-10-01")
+
+    def test_overlays_chain(self):
+        w = load(AFTER)
+        self.assertEqual(w.period[0].isoformat(), "2026-11-01")
+        self.assertEqual(w.instance("i-0a1b2c3d4e5f60301")["volumes"][0]["type"], "gp2")   # patch from month_after
+        self.assertNotIn("vol-0orph00000000c001", {v["id"] for v in w.all_volumes()})        # remove inherited from next_month
+
+    def test_bad_overlay_is_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "bad.yaml"
+            p.write_text(yaml.safe_dump({"scenario": {"name": "bad", "base": str(world_mod.WORLD_FILE)},
+                                         "remove": {"volumes": ["vol-nope"]}}))
+            with self.assertRaises(ValueError):
+                load(p)
+
+    def test_servers_serve_selected_world(self):
+        world_mod.use(NEXT)
+        aws, aws_url = _serve(aws_server.Handler)
+        prom, prom_url = _serve(metrics_server.Handler)
+        try:
+            ec2 = boto3.client("ec2", endpoint_url=aws_url, region_name="us-east-1", aws_access_key_id="x", aws_secret_access_key="x")
+            ids = {v["VolumeId"] for v in ec2.describe_volumes()["Volumes"]}
+            self.assertNotIn("vol-0orph00000000c001", ids)
+            self.assertIn("vol-0new000000000e001", ids)
+            self.assertEqual([a["AllocationId"] for a in ec2.describe_addresses()["Addresses"]], ["eipalloc-0aa0000000000002"])
+            q = urlencode({"query": "up", "time": "2026-10-15T00:00:00Z"})
+            self.assertTrue(json.load(urlopen(f"{prom_url}/api/v1/query?{q}"))["data"]["result"])
+            q = urlencode({"query": "up", "time": "2026-09-15T00:00:00Z"})
+            self.assertFalse(json.load(urlopen(f"{prom_url}/api/v1/query?{q}"))["data"]["result"])   # outside the October period
+        finally:
+            aws.shutdown(); prom.shutdown()
+
+
+class ScenarioConsistency(unittest.TestCase):
+    """Run the real agent over base -> next_month -> month_after and compare the state diff with `scenario.expect`."""
+
+    @classmethod
+    def setUpClass(cls):
+        from finops_agent.__main__ import run
+        cls.tmp = tempfile.TemporaryDirectory()
+        state = f"{cls.tmp.name}/state.json"
+        cls.diffs = {}
+        for rid, path in (("r1", None), ("r2", NEXT), ("r3", AFTER)):
+            world_mod.use(path)
+            w = load()
+            aws, aws_url = _serve(aws_server.Handler)
+            prom, prom_url = _serve(metrics_server.Handler)
+            try:
+                s, e = w.period
+                out = run(Namespace(aws_endpoint=aws_url, prom=prom_url, region="us-east-1", start=s.isoformat(), end=e.isoformat(),
+                                    out=cls.tmp.name, run_id=rid, snapshot=None, state=state, no_state=False))
+            finally:
+                aws.shutdown(); prom.shutdown()
+            cls.diffs[rid] = json.loads((out / "slo.json").read_text())["diff"]
+        world_mod.use(None)
+
+    @classmethod
+    def tearDownClass(cls):
+        world_mod.use(None)
+        cls.tmp.cleanup()
+
+    def keys(self, rid, state):
+        return {e["key"] for e in self.diffs[rid][state]}
+
+    def check(self, rid, path):
+        expect = yaml.safe_load(path.read_text())["scenario"]["expect"]
+        for state in ("resolved", "new", "regressed", "persisting"):
+            self.assertEqual(self.keys(rid, state), set(expect[state]), f"{path.name}: {state}")
+
+    def test_next_month_matches_expect(self):
+        self.check("r2", NEXT)
+
+    def test_month_after_matches_expect(self):
+        self.check("r3", AFTER)
+
+    def test_demo_claim(self):
+        d2, d3 = self.diffs["r2"], self.diffs["r3"]
+        self.assertTrue(d2["resolved"] and d2["new"])
+        self.assertTrue(d3["resolved"] and d3["regressed"] and d3["new"])
+        self.assertEqual(self.diffs["r2"]["regressed"], [])   # two runs can never regress: needs a third period
+
+    def test_base_run_is_all_new(self):
+        self.assertEqual(len(self.diffs["r1"]["new"]), 7)
+
+
 if __name__ == "__main__":
     unittest.main()

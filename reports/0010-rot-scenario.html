@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0010-rot-scenario</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0010-rot-scenario</h1>
+</header>
+<h2 id="改了什么">改了什么</h2>
+<p>合成账号加了”下个月”：两个服务支持
+<code>--world &lt;path&gt;</code>；<code>testenv/scenarios/</code>
+下两个<strong>覆盖层</strong>场景；<code>scripts/rot_demo.sh</code>
+三次运行共用一个 state 文件，端到端演示腐化检测。</p>
+<h2 id="为什么是三个周期">为什么是三个周期</h2>
+<p><code>diff_state</code> 中 <code>regressed</code> = 该 finding key 在
+state 的 <code>resolved</code> 里；key 只有在”上次
+open、这次消失”时才进入 <code>resolved</code>。因此第 2 次运行最多有
+resolved 和 new，<strong>regressed 至少要第 3 次</strong>。设计取舍见
+<code>openspec/changes/c0010-rot-scenario/design.md</code>。</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>周期</th>
+<th>场景</th>
+<th>事件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2026-09</td>
+<td>base <code>world.yaml</code></td>
+<td>7 个 finding，全部 new</td>
+</tr>
+<tr>
+<td>2026-10</td>
+<td><code>next_month.yaml</code></td>
+<td>孤儿卷删除、EIP 释放、orders-db 迁 gp3 → 3 resolved；team-data 的
+scratch 卷 → 1 new</td>
+</tr>
+<tr>
+<td>2026-11</td>
+<td><code>month_after.yaml</code></td>
+<td>terraform 把卷改回 gp2 → 1 regressed；scratch 卷删除 → 1
+resolved；canary 漏的 EIP → 1 new</td>
+</tr>
+</tbody>
+</table>
+<h2 id="验收">验收</h2>
+<h3 id="bash-scriptsrot_demo.sh退出码-0结束后-1656616990-无监听">1.
+<code>bash scripts/rot_demo.sh</code>（退出码 0，结束后 16566/16990
+无监听）</h3>
+<pre><code>== rot-1 (run 1, base world, period 2026-09) ==
+   new=7  persisting=0  resolved=0  regressed=0
+   new        misattributed_tags|i-0a1b2c3d4e5f60501
+   new        unattached_volume|vol-0orph00000000c001
+   new        idle_public_ip|eipalloc-0aa0000000000001
+   new        stopped_instance_storage|i-0a1b2c3d4e5f60801,vol-0leg000000000b001
+   new        orphan_snapshots|ami-ingest-v1,ami-ingest-v2,ami-ingest-v3,ami-ingest-v4,ami-ingest-v5,vol-0gone00000000d001
+   new        gp2_to_gp3|vol-0db0000000000a001
+   new        savings_plan_underutilized|sp-ec2-m5-01
+== rot-2 (run 2, next_month, period 2026-10) ==
+   new=1  persisting=4  resolved=3  regressed=0
+   resolved   gp2_to_gp3|vol-0db0000000000a001
+   resolved   unattached_volume|vol-0orph00000000c001
+   resolved   idle_public_ip|eipalloc-0aa0000000000001
+   new        unattached_volume|vol-0new000000000e001
+== rot-3 (run 3, month_after, period 2026-11) ==
+   new=1  persisting=4  resolved=1  regressed=1
+   resolved   unattached_volume|vol-0new000000000e001
+   regressed  gp2_to_gp3|vol-0db0000000000a001  (resolved in rot-2)
+   new        idle_public_ip|eipalloc-0aa0000000000003</code></pre>
+<h3 id="基础世界不变">2. 基础世界不变</h3>
+<p>对 <code>World.raw</code> 与全部成本行取 sha256，改动后 worktree 与
+main 一致：</p>
+<pre><code>worktree  0c5f19f2b30798a7b87a8b17eb84399a856e5261b19860ef552bd1aea33d361f
+main      0c5f19f2b30798a7b87a8b17eb84399a856e5261b19860ef552bd1aea33d361f</code></pre>
+<h3 id="make-test-make-check">3. <code>make test</code> /
+<code>make check</code></h3>
+<pre><code>Ran 3 tests in 0.067s
+OK
+Ran 7 tests in 1.027s
+OK
+Ran 41 tests in 5.607s
+OK
+make test exit=0
+check_rules: OK</code></pre>
+<p>其中 <code>testenv.test_testenv.ScenarioConsistency</code> 真实跑
+agent 三次（共用 state），diff 与各场景文件的
+<code>scenario.expect</code> 逐项相等；<code>WorldSelection</code> 覆盖
+<code>--world</code>
+加载、覆盖层链式、非法覆盖层、服务按所选世界应答。</p>
+<h3 id="openspec-validate-c0010-rot-scenario">4.
+<code>openspec validate c0010-rot-scenario</code></h3>
+<pre><code>Change &#39;c0010-rot-scenario&#39; is valid</code></pre>
+</body>
+</html>
