@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>AWS 侧只读加固需求</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">AWS 侧只读加固需求</h1>
+</header>
+<h1 id="aws-侧只读加固需求d9">AWS 侧只读加固需求（D9）</h1>
+<p>状态：<strong>只列需求，不改 AWS</strong>。本项目的只读是两层：</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>层</th>
+<th>实现</th>
+<th>挡得住</th>
+<th>挡不住</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 项目 hook</td>
+<td><code>hooks/aws_readonly_guard.py</code>（PreToolUse /
+Bash，fail-closed）</td>
+<td>agent 通过 Bash 发出的 aws CLI 写操作、读密钥操作</td>
+<td>Python/boto3 直连、别的工具、人手操作、hook 被绕过或未加载</td>
+</tr>
+<tr>
+<td>2 AWS IAM</td>
+<td>下表</td>
+<td>一切写操作，不论谁、用什么客户端</td>
+<td>权限本身配错</td>
+</tr>
+</tbody>
+</table>
+<p>第 2 层才是真正的保证，第 1 层负责早拦截和给 agent
+可读的拒绝原因。</p>
+<h2 id="需求清单">需求清单</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>需求</th>
+<th>防的是什么</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H1</td>
+<td>agent 用的 profile 只绑一个 IAM role，挂
+<code>ViewOnlyAccess</code>（不是 <code>ReadOnlyAccess</code>，后者能读
+S3 对象和部分密钥）</td>
+<td>写操作；读到业务数据</td>
+</tr>
+<tr>
+<td>H2</td>
+<td>额外挂一条 inline
+允许：<code>ce:Get*</code>、<code>ce:Describe*</code>、<code>cur:Describe*</code>、<code>pricing:Get*</code>、<code>cloudwatch:GetMetric*</code>、<code>tag:GetResources</code>、<code>compute-optimizer:Get*</code></td>
+<td>ViewOnly 缺的成本类读权限</td>
+</tr>
+<tr>
+<td>H3</td>
+<td>显式
+Deny：<code>secretsmanager:GetSecretValue</code>、<code>ssm:GetParameter*</code>、<code>kms:Decrypt</code>、<code>s3:GetObject</code>（CUR
+桶除外）</td>
+<td>读权限里的数据外泄面</td>
+</tr>
+<tr>
+<td>H4</td>
+<td>用 IAM Identity Center（SSO）发短期凭证，不发长期 access key</td>
+<td>凭证泄漏后长期可用</td>
+</tr>
+<tr>
+<td>H5</td>
+<td>理想形态：成本分析放在独立的 member account，或在 Organization 层用
+SCP 兜底拒绝写操作</td>
+<td>role 被误改成可写</td>
+</tr>
+<tr>
+<td>H6</td>
+<td>开 CloudTrail，按该 role 的 ARN 过滤，定期核对「是否出现非
+Get/List/Describe 调用」</td>
+<td>验证前面几条真的生效（可作为 eval 的一项）</td>
+</tr>
+<tr>
+<td>H7</td>
+<td>设一个 Budget 告警（例如 $5/月），覆盖 Cost Explorer API
+调用费（$0.01/请求）</td>
+<td>agent 循环调用把分析本身变成成本</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

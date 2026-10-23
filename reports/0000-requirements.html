@@ -301,6 +301,31 @@ prompt</td>
 <td>本项目，进 change-loop</td>
 </tr>
 <tr>
+<td>R16</td>
+<td>接个人 AWS 账号，<strong>只读</strong>。只读由项目级 hook
+实现并注册在本项目
+<code>.claude/settings.json</code>，这本身是项目的生产安全设计；AWS
+侧再加一层限制（独立账号、只读角色等）<strong>先只列需求，不改
+AWS</strong></td>
+<td>2344</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R17</td>
+<td>可见性用 <strong>本地搭的 Grafana</strong>。指标分两步：先由 agent
+分析「需要哪些 metric」，再去系统里查「有没有」，差集就是可见性缺口</td>
+<td>2345</td>
+<td>本项目</td>
+</tr>
+<tr>
+<td>R18</td>
+<td>个人主页（shaorui0.github.io）顶部加 <strong>FinOps Agent</strong>
+入口页：链到博客、GitHub 地址、我的思考过程、按阶段画出的流程图、每个
+commit 的交付物；按阶段展示，不一次性端出</td>
+<td>2345</td>
+<td>主页仓库 + 本项目</td>
+</tr>
+<tr>
 <td>R15</td>
 <td><strong>项目目的是学 Harness Engineering 最佳实践、体现对 AI Agent
 的掌控力</strong>，不是为做而做，也不只为解决成本问题。取舍冲突时，过程的可展示性优先于功能广度</td>
@@ -336,7 +361,8 @@ prompt</td>
 </tr>
 <tr>
 <td>D1</td>
-<td><strong>只读分析 Agent</strong>：输入 AWS 成本/资源数据 →
+<td><strong>只读分析 Agent</strong>：输入个人 AWS
+账号的成本/资源数据（经只读 hook）+ 合成数据（给 eval 和 demo） →
 输出分层报告（归因 / 闲置 / 潜在 / 可优化），每条 finding 带证据（资源
 ID、指标、时间窗、计算式）</td>
 <td>在 demo 数据集上跑通；每条 finding
@@ -366,6 +392,13 @@ prompt 注入；无证据数字（幻觉）检测</td>
 <td>R2 R4</td>
 </tr>
 <tr>
+<td>D1b</td>
+<td>可见性缺口分析：agent 先列所需 metric，再查本地 Grafana /
+数据源里有没有，输出缺口表</td>
+<td>缺口表每行有「需要的理由」和「查询证据」</td>
+<td>R17</td>
+</tr>
+<tr>
 <td>D5</td>
 <td>主动 loop：cron 定期跑分析 + eval 回归 + 公理蒸馏，写进
 <code>context/</code></td>
@@ -387,6 +420,21 @@ prompt 注入；无证据数字（幻觉）检测</td>
 <td>R1</td>
 </tr>
 <tr>
+<td>D8</td>
+<td>主页 FinOps Agent 页：阶段时间线（每个 change → 交付物 →
+报告/博客链接）+ GitHub 链接</td>
+<td>页面从本仓库 <code>reports/</code> 和 git log 生成，新 change
+提交后可重建；导航栏有入口</td>
+<td>R18</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>AWS 侧只读加固需求清单（只分析，不动 AWS）</td>
+<td><code>docs/aws_account_hardening.md</code>，每条写明防的是什么、hook
+层为什么挡不住</td>
+<td>R16</td>
+</tr>
+<tr>
 <td>X1</td>
 <td>prompt prehook（UserPromptSubmit）</td>
 <td>—</td>
@@ -403,7 +451,9 @@ D2 最小版（R5 说的”先做分析，结果给我”在这里停一次）�
 ID、账号号、内部代码都不能进仓库。只用合成数据，或用户自己的个人 AWS
 账号（只读角色）。</li>
 <li><strong>只读优先</strong>。M1–M2 全程无写 API；写路径（D4）单独
-gate。</li>
+gate。两层防线：项目 hook（<code>hooks/aws_readonly_guard.py</code>，拦
+agent 发出的 aws CLI 写操作，fail-closed）＋ AWS 侧
+IAM（D9，真正的保证；hook 挡不住 SDK 直连和人手误操作）。</li>
 <li><strong>数字必须有出处</strong>。这条来自以前做成本可见性服务的教训：报告里推荐的
 savings 比花费本身还大（资源重复计 + 单价错）。在这里它直接变成 D2
 的硬不变量，也是面试里最有说服力的”为什么要做 eval”。</li>
@@ -455,15 +505,39 @@ agent</td>
 </tr>
 </tbody>
 </table>
-<h2 id="待你确认">6. 待你确认</h2>
+<h2 id="已确认2026-10-23-23442345">6. 已确认（2026-10-23
+23:44–23:45）</h2>
+<table>
+<thead>
+<tr>
+<th>Q</th>
+<th>决定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1 数据源</td>
+<td>个人 AWS 账号，只读（R16）；合成数据仍用于 eval 和 demo</td>
+</tr>
+<tr>
+<td>Q2 可见性</td>
+<td>Grafana，本地搭（R17）</td>
+</tr>
+<tr>
+<td>Q3 LICENSE</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td>Q4 名字</td>
+<td>GitHub 仓库 <code>finops-agent</code>（FinOps Agent）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="待确认">7. 待确认</h2>
 <ul>
-<li>Q1 数据源：只用合成数据，还是也接你个人 AWS 账号（只读）？这决定 D1
-的输入适配器先写哪个。</li>
-<li>Q2 2335 里”可见性……比如说从这个 Gre…（断了）“：指的是
-<strong>Grafana</strong> 做可见性面板吗？</li>
-<li>Q3 LICENSE：MIT 还是 Apache-2.0？</li>
-<li>Q4 repo 名 <code>finops-agent</code> 是否就是 GitHub
-上的最终名？</li>
+<li>Q5 个人主页是哪个仓库？<code>blog-system</code> 部署在
+<code>shaorui0.github.io/tech</code>，根域名
+<code>shaorui0.github.io</code> 的仓库没在本地找到。</li>
 </ul>
 </body>
 </html>

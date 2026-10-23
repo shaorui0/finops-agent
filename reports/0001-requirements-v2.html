@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>c0001 requirements v2 + read-only guard</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">c0001 requirements v2 + read-only guard</h1>
+</header>
+<h1 id="c0001-requirements-v2">c0001-requirements-v2</h1>
+<h2 id="why">Why</h2>
+<p>23:44–23:45 语音回答了 Q1–Q4：接个人 AWS
+账号、必须只读、只读要在项目层用 hook 实现。在任何 AWS
+调用发生之前，先把这道闸装上。</p>
+<h2 id="what-changes">What Changes</h2>
+<ul>
+<li>REQUIREMENTS 升到 v2：新增 R16（只读 hook + AWS 侧需求）、R17（本地
+Grafana + metric 两步法）、R18（主页 FinOps Agent 页）；新增
+D1b、D8、D9；Q1–Q4 记为已确认，新增 Q5。</li>
+<li>新增项目级 PreToolUse hook
+<code>hooks/aws_readonly_guard.py</code>，注册在
+<code>.claude/settings.json</code>。</li>
+<li>新增 <code>docs/aws_account_hardening.md</code>（只列需求，不改
+AWS）。</li>
+<li>新增 MIT LICENSE。</li>
+</ul>
+<h2 id="capabilities">Capabilities</h2>
+<h3 id="new-capabilities">New Capabilities</h3>
+<ul>
+<li><code>aws-readonly-guard</code>：agent 通过 Bash 发出的 AWS CLI
+只能是读操作。</li>
+</ul>
+<h3 id="modified-capabilities">Modified Capabilities</h3>
+<p>（无）</p>
+<h2 id="impact">Impact</h2>
+<p>只影响本仓库的 Claude Code 会话；不碰任何 AWS 资源。</p>
+<h1 id="验收证据">验收证据</h1>
+<h2 id="单元测试">3.1 单元测试</h2>
+<pre><code>test_allowed (hooks.test_aws_readonly_guard.GuardTest.test_allowed) ... ok
+test_blocked (hooks.test_aws_readonly_guard.GuardTest.test_blocked) ... ok
+test_hook_protocol (hooks.test_aws_readonly_guard.GuardTest.test_hook_protocol) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.073s
+
+OK</code></pre>
+<h2 id="按注册命令行调用-hook">3.2 按注册命令行调用 hook</h2>
+<pre><code>$ aws ec2 terminate-instances --instance-ids i-1
+[aws_readonly_guard] BLOCKED: aws ec2 terminate-instances is not a read-only operation. This project is read-only against AWS.
+exit=2
+$ aws ce get-cost-and-usage
+exit=0
+$ bash -c &#39;aws s3 rm s3://b/k&#39;
+[aws_readonly_guard] BLOCKED: aws inside a sub-shell cannot be verified. This project is read-only against AWS.
+exit=2</code></pre>
+<h2 id="openspec-validate">3.3 openspec validate</h2>
+<pre><code>Change &#39;c0001-requirements-v2&#39; is valid</code></pre>
+<h2 id="敏感信息扫描">3.4 敏感信息扫描</h2>
+<pre><code>matches-exit=1 (1 = 无命中)</code></pre>
+</body>
+</html>
