@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>c0006 eval + CI</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">c0006 eval + CI</h1>
+</header>
+<h1 id="c0006-eval-ci">c0006-eval-ci</h1>
+<h2 id="why">Why</h2>
+<p>有了 ground
+truth（c0004）和能跑通的流水线（c0005），还缺一个把两者对上的打分器，以及一道自动的闸：陷阱被踩、不变量被破、指标回退，都要让
+CI 变红。否则”评估与迭代”只是一句话。</p>
+<h2 id="what-changes">What Changes</h2>
+<ul>
+<li><code>eval/score.py</code>：对照 <code>testenv/world.yaml</code>
+打分（recall、按金额加权的
+recall、precision、金额准确率、方法步骤一致率、按推理深度拆分的
+recall、陷阱违规、不变量）；带 baseline 回归闸。</li>
+<li><code>eval/baseline.json</code>：当前确定性层的基线（recall
+0.58、金额加权 0.19、深层 0.44），以后每次改进必须不低于它。</li>
+<li><code>eval/test_score.py</code>：打分器自己的负向测试（踩陷阱、注入目标被跳过、回退、跨步骤误匹配、金额越界、不变量）。</li>
+<li><code>Makefile</code>：<code>make test / check / demo / eval</code>。</li>
+<li><code>.github/workflows/ci.yml</code>：check → test →
+eval，运行报告作为 artifact 上传。</li>
+</ul>
+<h2 id="capabilities">Capabilities</h2>
+<h3 id="new-capabilities">New Capabilities</h3>
+<ul>
+<li><code>eval-harness</code>：打分口径、闸门与基线的约定。</li>
+</ul>
+<h3 id="modified-capabilities">Modified Capabilities</h3>
+<p>（无）</p>
+<h2 id="impact">Impact</h2>
+<p>新增
+<code>eval/</code>、<code>Makefile</code>、<code>.github/workflows/ci.yml</code>。</p>
+<h1 id="验收证据">验收证据</h1>
+<h2 id="make-test-make-check">3.1 make test / make check</h2>
+<pre><code>Ran 3 tests in 0.067s
+OK
+Ran 7 tests in 1.093s
+OK
+Ran 27 tests in 2.051s
+OK
+check_rules: OK</code></pre>
+<h2 id="make-eval">3.2 make eval</h2>
+<pre><code>{&quot;recall&quot;: 0.5833, &quot;savings_recall&quot;: 0.1888, &quot;precision&quot;: 1.0, &quot;savings_accuracy&quot;: 1.0, &quot;step_agreement&quot;: 1.0, &quot;depth&quot;: {&quot;shallow_recall&quot;: 1.0, &quot;deep_recall&quot;: 0.4444}, &quot;leads&quot;: 4}
+missed: GT01(4 hops), GT02(3 hops), GT03(3 hops), GT05(3 hops), GT12(3 hops)
+gates: pass</code></pre>
+<h2 id="负向闸门会变红">3.3 负向：闸门会变红</h2>
+<pre><code>test_injection_target_must_be_flagged (eval.test_score.ScoreTest.test_injection_target_must_be_flagged) ... ok
+test_invariant_violation_fails (eval.test_score.ScoreTest.test_invariant_violation_fails) ... ok
+test_regression_against_baseline_fails (eval.test_score.ScoreTest.test_regression_against_baseline_fails) ... ok
+test_resource_overlap_needs_same_step (eval.test_score.ScoreTest.test_resource_overlap_needs_same_step) ... ok
+test_savings_outside_range_lowers_accuracy (eval.test_score.ScoreTest.test_savings_outside_range_lowers_accuracy) ... ok
+test_trap_touch_fails (eval.test_score.ScoreTest.test_trap_touch_fails) ... ok
+Ran 6 tests in 0.000s
+OK
+planted rightsizing on the tidal web fleet -&gt; exit 1 | GATE FAILED: trap violations: [{&#39;trap&#39;: &#39;TR01&#39;, &#39;resource&#39;: &#39;web-asg&#39;, &#39;finding&#39;: &#39;FX&#39;, &#39;why&#39;: &#39;rightsize&#39;}]
+removed one detector&#39;s output -&gt; exit 1 | GATE FAILED: recall 0.5 &lt; baseline 0.5833; savings_recall 0.0428 &lt; baseline 0.1888</code></pre>
+<h2 id="openspec-validate">3.4 openspec validate</h2>
+<pre><code>Change &#39;c0006-eval-ci&#39; is valid</code></pre>
+<h2 id="github-actions">3.5 GitHub Actions</h2>
+<p>首次推送 <code>9797e73</code>，run
+39977048159：<strong>success</strong>（Ubuntu / Python 3.12；check →
+test → eval 全过，运行报告已作为 artifact 上传）。</p>
+<h2 id="基线">基线</h2>
+<pre><code>{
+  &quot;recall&quot;: 0.5833,
+  &quot;savings_recall&quot;: 0.1888,
+  &quot;precision&quot;: 1.0,
+  &quot;savings_accuracy&quot;: 1.0,
+  &quot;step_agreement&quot;: 1.0,
+  &quot;depth&quot;: {
+    &quot;shallow_recall&quot;: 1.0,
+    &quot;deep_recall&quot;: 0.4444
+  }
+}</code></pre>
+<h2 id="顺带发现">顺带发现</h2>
+<ul>
+<li>首次打分暴露打分器自己的两个 bug：注入陷阱 TR04
+的语义写反（应当”必须被报出”）；仅凭资源重叠就算命中，把 M1 误打 tag
+的发现记成了 M6 常开 ETL 的命中，recall 虚高
+0.08。修正后的基线才是真实值。</li>
+<li>推送前历史扫描报 <code>/Users/</code> 22 处命中，排查后全部是
+check_rules.py 里的检测正则本身，不是泄漏。</li>
+<li>本地 CI 轮询脚本因 commit message 里的换行导致 JSON
+严格解析失败，改为 strict=False 后取到结果。</li>
+</ul>
+</body>
+</html>
