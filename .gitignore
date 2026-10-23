@@ -7,3 +7,4 @@ data/private/
 __pycache__/
 .venv/
 .leak_patterns.local
+runs/
