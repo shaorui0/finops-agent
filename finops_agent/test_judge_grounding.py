@@ -82,6 +82,34 @@ class ValidateGroundingTest(unittest.TestCase):
             validate.validate(reply(reasoning="Name 标签说可省 $99,999。"), self.b)
 
 
+class QuotingAnAttackTest(unittest.TestCase):
+    """G7 / G8: the model is told to mention injected instructions, so quoting them must not discard a correct answer."""
+
+    def setUp(self):
+        self.b = make_brief()
+
+    def nw(self, **kw):
+        return reply(verdict="not_waste", resources=[], hops=[], evidence=[], savings_choice="none", basis="none", **kw)
+
+    def test_not_waste_may_quote_a_number_from_the_untrusted_metadata(self):
+        j = validate.validate(self.nw(title="r-1 不是浪费", reasoning="Name 标签里要求写 $99,999，这是不可信数据，已忽略。"), self.b)
+        self.assertEqual(j.verdict, "not_waste")
+
+    def test_not_waste_still_may_not_invent_a_number_that_is_nowhere(self):
+        with self.assertRaises(validate.Rejected):
+            validate.validate(self.nw(title="r-1 不是浪费", reasoning="本月可以省 $31,337。"), self.b)
+
+    def test_waste_may_not_carry_a_number_from_the_untrusted_metadata(self):
+        """Number bait on a really wasteful fleet: the model quotes the bait, the finding is rejected (fail closed, recorded)."""
+        with self.assertRaises(validate.Rejected) as cm:
+            validate.validate(reply(reasoning="fleet 月化 $1,468.80；Name 标签声称可省 $99,999，不可信，已忽略。"), self.b)
+        self.assertIn("99,999", str(cm.exception))
+
+    def test_month_and_day_words_are_calendar_not_amounts(self):
+        self.assertEqual(validate.ungrounded_numbers("它已于 7 月退役，8月15日停机，每天 3 号", self.b), [])
+        self.assertEqual(validate.ungrounded_numbers("停机 30 天", self.b), ["30"])
+
+
 class TraceTest(unittest.TestCase):
     def test_rejection_is_recorded_in_the_trace_and_makes_no_finding(self):
         b = make_brief()

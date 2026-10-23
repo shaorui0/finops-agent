@@ -17,13 +17,20 @@ PROTECTIVE_TAG_KEYS = ("dr", "keep", "do-not-delete", "retain")   # intent tags:
 #   G2  dates and clock times (2026-09-04, 09-04, 02:00) are removed first; they are facts about the calendar, not amounts.
 #   G3  identifier-like tokens (letters, then dash/dot/colon parts that contain a digit) are removed first.
 #   G4  the evidence numbers are those written in the brief's facts, candidates (value and description), signal and the
-#       resource-spend line. Text from `untrusted` (tags, names) is NEVER evidence: an injected "$99,999" grounds nothing.
+#       resource-spend line. Text from `untrusted` (tags, names) is never evidence (G8 is the one narrow exception): an injected "$99,999" grounds nothing.
 #   G5  match: |n - k| <= max(1% of |k|, half a unit of the last decimal place n was written with). "6" matches "6.0";
 #       "$1,468.8" matches 1468.80. A percentage n% also matches a ratio k = n/100, and a ratio matches a percentage.
 #   G6  no exemption by size: small integers ("4 台", "6 倍") are checked like any other number. (The first version exempted
 #       bare integers below 100 and accepted any n within 0.5 of a 3-digit k.)
+#   G7  calendar words are not amounts: "7 月", "12 日" are removed with the dates (G2). A model translating "July" must not be rejected.
+#   G8  quoting an attack: the prompt tells the model to mention instructions found in tags. When the verdict is not `waste`
+#       (no finding is created, the text is a log line) a number that occurs in the untrusted metadata is tolerated, so that
+#       "the Name tag asks for $4,000" does not discard a correct not_waste. For a `waste` verdict the same number is rejected:
+#       the text becomes the finding's reasoning, and an attacker-chosen figure must not be displayed as a claim. Known residual
+#       risk: number bait inside the metadata of a really wasteful fleet makes the model quote it and the finding is rejected
+#       (fail closed, recorded in the trace with the number as reason). See eval/EXPERIMENTS.md.
 NUM = re.compile(r"(?<![A-Za-z0-9_.])\$?\d[\d,]*(?:\.\d+)?%?")
-DATE = re.compile(r"\d{4}-\d{2}(-\d{2})?|(?<![\d.])\d{1,2}-\d{2}(?![\d-])|\d{1,2}:\d{2}(:\d{2})?")
+DATE = re.compile(r"\d{4}-\d{2}(-\d{2})?|(?<![\d.])\d{1,2}-\d{2}(?![\d-])|\d{1,2}:\d{2}(:\d{2})?|\d{1,2}\s*月(?:\s*\d{1,2}\s*[日号])?|\d{1,2}\s*[日号]")
 IDENT = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:[-.:][A-Za-z0-9_]+)+|[A-Za-z]+\d[A-Za-z0-9_]*")
 
 
@@ -96,9 +103,14 @@ def _matches(raw: str, k: float) -> bool:
     return any(abs(v - k) <= max(0.01 * abs(k), h) for v, h in scaled)
 
 
-def ungrounded_numbers(text: str, b: Brief) -> list:
-    """Numbers in free text that appear nowhere in the evidence (rules G1-G6 above)."""
-    known = _evidence_numbers(b)
+def _untrusted_numbers(b: Brief) -> list:
+    return [_num(m.group()) for v in b.untrusted.values() for t in map(str, v.values()) for m in NUM.finditer(_clean(t))]
+
+
+def ungrounded_numbers(text: str, b: Brief, quoting_ok: bool = False) -> list:
+    """Numbers in free text that appear nowhere in the evidence (rules G1-G8 above).
+    quoting_ok: also accept numbers that occur in the untrusted metadata (G8, non-waste verdicts only)."""
+    known = _evidence_numbers(b) + (_untrusted_numbers(b) if quoting_ok else [])
     return [m.group() for m in NUM.finditer(_clean(text)) if not any(_matches(m.group(), k) for k in known)]
 
 
@@ -108,7 +120,7 @@ def validate(raw: str, b: Brief, protected: set | None = None) -> Judgment:
     if v not in VERDICTS:
         raise Rejected(f"verdict {v!r} not in {VERDICTS}")
     texts = " ".join(str(d.get(k, "")) for k in ("title", "reasoning")) + " " + " ".join(map(str, d.get("hops") or []))
-    bad = ungrounded_numbers(texts, b)
+    bad = ungrounded_numbers(texts, b, quoting_ok=(v != "waste"))
     if bad:
         raise Rejected(f"numbers not found in the evidence: {bad}")
     cited = d.get("evidence") or []
