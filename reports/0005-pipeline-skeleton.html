@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>c0005 pipeline skeleton</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">c0005 pipeline skeleton</h1>
+</header>
+<h1 id="c0005-pipeline-skeleton">c0005-pipeline-skeleton</h1>
+<h2 id="why">Why</h2>
+<p>有了测试环境（c0004），要让整条链路先跑通：采集 → 冻结快照 → 分析 →
+可见性链 → 报告。骨架阶段只放确定性检测器，需要跨源判断的深层发现以 lead
+的形式交给后面的判断层，这样第一次 eval 就能如实暴露 recall
+缺口，而不是用启发式把它糊过去。</p>
+<h2 id="what-changes">What Changes</h2>
+<ul>
+<li><code>finops_agent/collect.py</code>：boto3 + Prometheus HTTP
+只读采集，所有调用记 trace；输出冻结快照。</li>
+<li><code>finops_agent/analyze.py</code>：按 METHOD
+步骤组织的确定性检测器（M1 tag 与启动模板冲突、M2 二八与意外项、M3
+未挂载卷/空闲 IP/停机实例存储/孤儿快照、M4 gp2→gp3、M5 SP
+利用率）；跨源信号输出为 Lead；不变量检查（节省 ≤
+资源花费、非零节省必须有口径、必须有证据）。</li>
+<li><code>finops_agent/visibility.py</code> +
+<code>config/visibility_requirements.yaml</code>：可见性链四环落地（①为人工给定的需求表，后续由判断层生成）。</li>
+<li><code>finops_agent/report.py</code>：按 M0–M6 组织的 HTML 报告，每条
+finding 展示推理链与证据表；附可见性缺口表与调用 trace。</li>
+<li><code>python3 -m finops_agent run</code>：一条命令跑完。</li>
+</ul>
+<h2 id="capabilities">Capabilities</h2>
+<h3 id="new-capabilities">New Capabilities</h3>
+<ul>
+<li><code>analysis-pipeline</code>：采集、快照、检测、不变量、报告的行为约定。</li>
+<li><code>visibility-chain-impl</code>：c0002 规格的第一版实现。</li>
+</ul>
+<h3 id="modified-capabilities">Modified Capabilities</h3>
+<p>（无）</p>
+<h2 id="impact">Impact</h2>
+<p>新增 <code>finops_agent/</code>、<code>config/</code>；运行产物写到
+<code>runs/</code>（gitignore）。</p>
+<h1 id="验收证据">验收证据</h1>
+<h2 id="全链路测试">4.1 全链路测试</h2>
+<pre><code>test_artifacts_written (finops_agent.test_pipeline.PipelineTest.test_artifacts_written) ... ok
+test_every_finding_has_method_step_and_evidence (finops_agent.test_pipeline.PipelineTest.test_every_finding_has_method_step_and_evidence) ... ok
+test_invariants_pass (finops_agent.test_pipeline.PipelineTest.test_invariants_pass) ... ok
+test_leads_point_at_deep_findings (finops_agent.test_pipeline.PipelineTest.test_leads_point_at_deep_findings) ... ok
+test_misattribution_found_despite_injection (finops_agent.test_pipeline.PipelineTest.test_misattribution_found_despite_injection) ... ok
+test_trace_is_read_only (finops_agent.test_pipeline.PipelineTest.test_trace_is_read_only) ... ok
+test_traps_not_flagged (finops_agent.test_pipeline.PipelineTest.test_traps_not_flagged) ... ok
+test_two_hop_findings (finops_agent.test_pipeline.PipelineTest.test_two_hop_findings) ... ok
+test_visibility_gaps_match_planted (finops_agent.test_pipeline.PipelineTest.test_visibility_gaps_match_planted) ... ok
+Ran 9 tests in 0.969s
+OK</code></pre>
+<h2 id="对着运行中的服务器跑">4.2 对着运行中的服务器跑</h2>
+<pre><code>run acceptance: 7 findings, 4 leads, invariants pass
+runs/acceptance/report.html</code></pre>
+<h2 id="快照重放不访问-aws">快照重放（不访问 AWS）</h2>
+<pre><code>run replay: 7 findings, 4 leads, invariants pass
+runs/replay/report.html
+findings identical: True
+aws calls in replay: 0</code></pre>
+<h2 id="本次运行结果">本次运行结果</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>ID</th>
+<th>步骤</th>
+<th>类型</th>
+<th>节省</th>
+<th>口径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F01</td>
+<td>M1_visibility_attribution</td>
+<td>misattributed_tags</td>
+<td>$0.00</td>
+<td>none</td>
+</tr>
+<tr>
+<td>F02</td>
+<td>M3_delete</td>
+<td>unattached_volume</td>
+<td>$50.00</td>
+<td>billed_14d_extrapolated</td>
+</tr>
+<tr>
+<td>F03</td>
+<td>M3_delete</td>
+<td>idle_public_ip</td>
+<td>$3.60</td>
+<td>billed_14d_extrapolated</td>
+</tr>
+<tr>
+<td>F04</td>
+<td>M3_delete</td>
+<td>stopped_instance_storage</td>
+<td>$900.00</td>
+<td>billed_14d_extrapolated</td>
+</tr>
+<tr>
+<td>F05</td>
+<td>M3_delete</td>
+<td>orphan_snapshots</td>
+<td>$190.00</td>
+<td>billed_14d_extrapolated</td>
+</tr>
+<tr>
+<td>F06</td>
+<td>M4_downsize_schedule</td>
+<td>gp2_to_gp3</td>
+<td>$20.00</td>
+<td>list_price</td>
+</tr>
+<tr>
+<td>F07</td>
+<td>M5_commitment</td>
+<td>savings_plan_underutilized</td>
+<td>$0.00</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p>Leads：L01 NatGateway-Bytes rose 5.5x, starting 2026-09-04；L02
+DataTransfer-Regional-Bytes costs $760 with no resource id；L03 web-asg:
+4 instances; is the fleet doing useful work?；L04 ingest-asg: 6
+instances; is the fleet doing useful work?</p>
+<p>可见性第 ④
+环：idle_detection=covered；useful_work_ratio=partial；rightsizing_headroom=missing；latency_slo_guard=covered；schedule_detection=covered；unit_cost_per_job=missing；cross_az_attribution=partial；nat_attribution=covered</p>
+<p>对照 ground truth（粗看，正式打分在 c0006）：确定性层命中 7/12：GT04,
+GT06, GT07, GT08, GT09, GT10, GT11；未命中的 GT01, GT02, GT03, GT05,
+GT12 需要判断层。</p>
+<h2 id="回归">4.3 回归</h2>
+<pre><code>OK
+OK
+OK
+check_rules: OK</code></pre>
+<h2 id="openspec-validate">4.4 openspec validate</h2>
+<pre><code>Change &#39;c0005-pipeline-skeleton&#39; is valid</code></pre>
+<p>演示运行报告：<code>reports/0005-demo-run.html</code></p>
+</body>
+</html>
