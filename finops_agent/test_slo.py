@@ -27,6 +27,72 @@ class DiffStateTest(unittest.TestCase):
         self.assertEqual(len(d2["resolved"]), 1)
 
 
+def mksnap(volumes=(), cost=None):
+    """Minimal snapshot: volumes are (id, VolumeType, Size); cost = {resource id: 14-day USD}."""
+    groups = [{"Keys": [r], "Metrics": {"UnblendedCost": {"Amount": str(c)}}} for r, c in (cost or {}).items()]
+    return {"resource_period": {"Start": "2026-10-18", "End": "2026-11-01"}, "cost_by_resource_14d": [{"Groups": groups}],
+            "volumes": [{"VolumeId": i, "State": "available", "VolumeType": t, "Size": z, "Attachments": []} for i, t, z in volumes]}
+
+
+class NotRedetectedTest(unittest.TestCase):
+    """A finding that vanishes is `resolved` only with evidence the resource changed; otherwise it was just not re-detected."""
+    GP2 = F("F1", "gp2_to_gp3", ["vol-a"])
+
+    def run1(self, snap):
+        return diff_state([self.GP2], None, "r1", date(2026, 10, 1), snap)
+
+    def test_resource_still_there_and_unchanged_is_not_redetected_not_resolved(self):
+        snap = mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0})
+        _, s1 = self.run1(snap)
+        d2, s2 = diff_state([], s1, "r2", date(2026, 11, 1), snap)
+        self.assertEqual(d2["resolved"], [])
+        self.assertEqual([x["key"] for x in d2["not_redetected"]], ["gp2_to_gp3|vol-a"])
+        self.assertNotIn("gp2_to_gp3|vol-a", s2["resolved"])      # so a later reappearance is not called a regression
+
+    def test_resource_absent_is_resolved(self):
+        _, s1 = self.run1(mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0}))
+        d2, _ = diff_state([], s1, "r2", date(2026, 11, 1), mksnap())
+        self.assertEqual([x["key"] for x in d2["resolved"]], ["gp2_to_gp3|vol-a"])
+        self.assertEqual(d2["not_redetected"], [])
+
+    def test_type_changed_in_place_is_resolved(self):
+        _, s1 = self.run1(mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0}))
+        d2, _ = diff_state([], s1, "r2", date(2026, 11, 1), mksnap([("vol-a", "gp3", 100)], {"vol-a": 11.2}))
+        self.assertEqual(len(d2["resolved"]), 1)
+
+    def test_cost_line_dropped_is_resolved(self):
+        _, s1 = self.run1(mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0}))
+        d2, _ = diff_state([], s1, "r2", date(2026, 11, 1), mksnap([("vol-a", "gp2", 100)], {"vol-a": 1.0}))
+        self.assertEqual(len(d2["resolved"]), 1)
+
+    def test_not_redetected_persists_then_resolves_then_regresses(self):
+        snap = mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0})
+        _, s1 = self.run1(snap)
+        d2, s2 = diff_state([], s1, "r2", date(2026, 11, 1), snap)
+        d3, s3 = diff_state([], s2, "r3", date(2026, 12, 1), snap)
+        self.assertEqual(d3["not_redetected"][0]["since"], "r2")           # still the same missed detection
+        d4, s4 = diff_state([], s3, "r4", date(2027, 1, 1), mksnap())        # now the volume is gone
+        self.assertEqual(len(d4["resolved"]), 1)
+        d5, _ = diff_state([self.GP2], s4, "r5", date(2027, 2, 1), mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0}))
+        self.assertEqual(len(d5["regressed"]), 1)
+
+    def test_redetected_after_a_miss_is_persisting(self):
+        snap = mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0})
+        _, s1 = self.run1(snap)
+        _, s2 = diff_state([], s1, "r2", date(2026, 11, 1), snap)
+        d3, s3 = diff_state([self.GP2], s2, "r3", date(2026, 12, 1), snap)
+        self.assertEqual((len(d3["persisting"]), len(d3["regressed"]), s3["not_redetected"]), (1, 0, {}))
+
+    def test_without_a_snapshot_the_old_behavior_holds(self):
+        _, s1 = diff_state([self.GP2], None, "r1", date(2026, 10, 1))
+        d2, _ = diff_state([], s1, "r2", date(2026, 11, 1))
+        self.assertEqual((len(d2["resolved"]), d2["not_redetected"]), (1, []))
+
+    def test_prometheus_state_label_includes_not_redetected(self):
+        d = {"new": [], "persisting": [], "resolved": [], "regressed": [], "not_redetected": [1, 2]}
+        self.assertIn('finops_findings{state="not_redetected"} 2', to_prometheus([], d, "r1", 1.0))
+
+
 class EvaluateTest(unittest.TestCase):
     CFG = {"slos": [
         {"id": "waste_ratio", "what": "", "op": "<=", "target": 0.05, "budget": True, "cadence": "daily"},

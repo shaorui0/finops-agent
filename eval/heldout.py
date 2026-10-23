@@ -32,7 +32,9 @@ from testenv import aws_server, metrics_server, world as world_mod
 
 ROOT = Path(__file__).resolve().parent.parent
 SCEN = ROOT / "testenv" / "scenarios"
-PORT_RANGE = range(31568, 31600)     # in-process test servers bind here
+import os
+_LO, _HI = (int(x) for x in os.environ.get("FINOPS_HELDOUT_PORTS", "31568-31599").split("-"))
+PORT_RANGE = range(_LO, _HI + 1)     # in-process test servers bind here (override with FINOPS_HELDOUT_PORTS=lo-hi)
 KEYS = ("recall", "savings_recall", "precision", "savings_accuracy", "step_agreement", "depth", "leads")
 PRICE = {"gp2": 0.10, "gp3": 0.08, "io1": 0.125}
 

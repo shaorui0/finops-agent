@@ -54,8 +54,11 @@
 |---|---|
 | new | 这次第一次出现 |
 | persisting | 上次就有，还没处理（计入 remediation_age_days） |
-| resolved | 上次有，这次没了 |
-| **regressed** | 曾经被关闭，又回来了 |
+| resolved | 上次有，这次没了，**并且**有成本侧证据说明资源或用量变了：资源已不在清单里，或属性变了（卷类型、状态、大小、关联），或近 14 天日均成本掉了 10% 以上 |
+| not_redetected | 上次有，这次没了，但资源还在清单里、属性和成本都没变。这是漏检，不是修复，不计入 resolved |
+| **regressed** | 曾经被关闭（resolved），又回来了 |
+
+resolved 和 not_redetected 的区分靠 `state.json` 里每条 finding 检出时的资源指纹（`evidence`）：消失时拿当前快照对比。not_redetected 不进 resolved 记录，所以它之后重新出现算 persisting，不会被误报成 regressed；它会一直报 not_redetected，直到资源真的变了（转成 resolved）或 finding 又被检出（回到 persisting）。没有检出时指纹的旧 state 无法比较，资源还在就记 not_redetected。`finops_findings{state="not_redetected"}` 也会导出，目前没有告警挂在它上面：它多是检测器或判断层的问题，应在每周评审里看，而不是当作成本事故。
 
 regressed 是腐烂最直接的信号：修过的东西没有防住复发，说明缺的是机制（生命周期策略、tag 强制、删除资源时的级联清理），而不是又一次手工清理。`FinOpsRegression` 告警在它出现时立即触发。
 

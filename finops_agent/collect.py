@@ -107,6 +107,10 @@ class Collector:
         snap["cost_by_owner"] = cost([{"Type": "TAG", "Key": "owner"}])["ResultsByTime"]
         snap["cost_daily_by_usage_type"] = ce("get_cost_and_usage", TimePeriod=tp, Granularity="DAILY", Metrics=["UnblendedCost"],
                                               GroupBy=[{"Type": "DIMENSION", "Key": "USAGE_TYPE"}])["ResultsByTime"]
+        # the window's own jump test cannot see an anomaly that began before the window: keep the days before it as a baseline
+        snap["cost_history_daily_by_usage_type"] = ce("get_cost_and_usage", TimePeriod={"Start": (c.start - timedelta(days=92)).isoformat(), "End": c.start.isoformat()},
+                                                      Granularity="DAILY", Metrics=["UnblendedCost"],
+                                                      GroupBy=[{"Type": "DIMENSION", "Key": "USAGE_TYPE"}])["ResultsByTime"]
         snap["cost_by_resource_14d"] = ce("get_cost_and_usage_with_resources", TimePeriod=res_tp, Granularity="MONTHLY",
                                           Metrics=["UnblendedCost", "AmortizedCost"],
                                           Filter={"Dimensions": {"Key": "SERVICE", "Values": ["Amazon Elastic Compute Cloud - Compute", "EC2 - Other", "Amazon Virtual Private Cloud"]}},
