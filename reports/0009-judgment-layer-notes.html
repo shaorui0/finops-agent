@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0009-judgment-layer-notes</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0009-judgment-layer-notes</h1>
+</header>
+<h1 id="judgment-layer-博客笔记">0009-judgment-layer 博客笔记</h1>
+<ul>
+<li>确定性检测器 + LLM 的分工线：代码取证、算数、列候选；LLM
+只做”选”。节省金额由代码按 <code>savings_choice</code>
+填，模型文字里的数字必须能在证据里找到，否则整条判断被拒。拒绝不修补，记
+trace。</li>
+<li>eval 从 recall 0.58 / deep 0.44 / savings 0.19 到 1.0 / 1.0 /
+1.0。别当成泛化证据：prompt 的 rubric 是对着这个账号迭代出来的（6
+轮全量录制），代码和测试里没有任何资源
+ID，但”模型被调到会答这个账号”是事实。</li>
+<li>cassette 键是 sha256(model + prompt)，所以改 prompt 就会让所有旧
+cassette 失效，replay 直接报错而不是悄悄回退。这是特性：prompt
+变更必须伴随一次重录和一次 eval。</li>
+<li>重录会改判断。同样的 prompt 重录一次，NAT
+线索从”浪费”变成”证据不足”（理由合理：没有按目的地拆分的字节）。LLM
+的方差只在录制时出现，replay 之后固定。所以 eval 的稳定性来自
+cassette，不来自模型。</li>
+<li>修复方法不是改 prompt 放水，而是多算一个事实：NAT 多出的 GB
+除以重试多出的次数，得到每次固定的字节数。证据变强，判断自己就稳了。</li>
+<li>隔离要靠测试断言，不靠自觉。用真实数据重建每条线索的 prompt，和
+cassette 里实际发出的 prompt
+逐字比，再断言不含其他线索独有的证据行。</li>
+<li>第一批录制的 usage 里 cache_read 有 73K tokens，同一个 prompt
+事后单独调只有 3.4K，原因没查清。丢掉重录。教训：trace 里的 tokens
+值要有量级的合理性检查，否则成本报表是错的而没人发现。</li>
+<li><code>claude -p --output-format json</code>
+的字段：<code>result</code>、<code>usage.{input_tokens,cache_creation_input_tokens,cache_read_input_tokens,output_tokens}</code>、<code>total_cost_usd</code>、<code>duration_ms</code>、<code>modelUsage</code>。加
+<code>--tools "" --setting-sources "" --disable-slash-commands</code>
+后单次约 3K tokens、$0.02；不加的话光系统提示就几万 tokens、约
+$0.1。</li>
+<li>tag 里的 prompt injection 靠两层：prompt 里用
+<code>&lt;untrusted_metadata&gt;</code>
+块声明那是数据；代码里不让模型的文字决定是否”跳过”。模型自己在 reasoning
+里指出了那条 Name 是第三方写入的数据，没有影响判断。</li>
+<li>意图 tag 护栏：带 <code>dr</code> 等 tag
+的资源被判浪费，代码直接拒绝。模型这次都答对了，护栏没触发，但它存在是因为
+FA07：模型之外要有确定性的闸。</li>
+<li>dev 调度那条的答案是 0。取证器同时给出 <code>idle_hours_cost</code>
+和
+<code>net_after_commitment</code>，被覆盖的机型族、未用承诺大于释放的花费时后者为
+0。模型选了后者。这条发现的价值是”不要做”，节省 recall
+里它占的权重是中点金额。</li>
+<li>坑：<code>make eval</code> 的 <code>demo</code> 失败时
+<code>make stop</code> 不会执行，测试服务器会留在后台占端口；管道里接
+<code>tail</code> 会因为后台进程持有 stdout 而挂住。Makefile 的
+<code>export X ?= v   # 注释</code> 会把注释前的空格带进变量值。</li>
+<li>线索种类写死了取证器，换来每个数字都能追溯到一条查询；代价是新线索要新写取证器。
+PROGRESS_ROW: | c0009-judgment-layer | 10-24 | 判断层：LLM
+逐条回答线索（代码取证并算数，模型只选候选，record/replay
+cassette），新增空闲时段线索，报告加「Agent 成本」 |
+代码算数、模型只选：eval 深度 recall 0.44 →
+1.0，且重录会改判断，稳定性来自 cassette 而不是模型 | <a
+href="reports/0009-judgment-layer.html">报告</a> · <a
+href="notes/blog/0009-judgment-layer.md">笔记</a> |</li>
+</ul>
+</body>
+</html>
