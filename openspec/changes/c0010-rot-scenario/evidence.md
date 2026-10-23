@@ -54,3 +54,11 @@ check_rules: OK
 ```
 Change 'c0010-rot-scenario' is valid
 ```
+
+## 5. 合并后修复（c0009 judgment 层并入后）
+
+现象：`make test` 在 `ScenarioConsistency.setUpClass` 报 `CassetteMissing`，随后 `WorldConsistency.test_savings_ranges` 报 `GT02: 2948.47 not in {min 2400, max 2900}`（单独跑 WorldConsistency 为 OK）。
+
+根因：c0009 让 pipeline 默认调用 LLM judge（replay 模式），场景世界没有 cassette，`run()` 抛 `CassetteMissing`；`setUpClass` 在 `world_mod.use(path)` 之后中途失败，unittest 在 setUpClass 失败时不会执行 `tearDownClass`，全局 `_ACTIVE` 留在场景世界上，后续测试读到错误的世界。
+
+修复（仅 `testenv/test_testenv.py`，`world.py` 未改）：(1) 世界选择在 `finally` 中还原，并用 `addClassCleanup` 兜底；(2) `ScenarioConsistency` 的进程内 agent 传 `no_judge=True`（与 CLI `--no-judge` 同字段），只测 rot 检测逻辑。未录 cassette，断言/ground truth/savings 区间均未改。

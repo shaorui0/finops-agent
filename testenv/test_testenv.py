@@ -219,6 +219,9 @@ class ScenarioConsistency(unittest.TestCase):
     def setUpClass(cls):
         from finops_agent.__main__ import run
         cls.tmp = tempfile.TemporaryDirectory()
+        # unittest skips tearDownClass when setUpClass raises, so register restores as class cleanups
+        cls.addClassCleanup(world_mod.use, None)
+        cls.addClassCleanup(cls.tmp.cleanup)
         state = f"{cls.tmp.name}/state.json"
         cls.diffs = {}
         for rid, path in (("r1", None), ("r2", NEXT), ("r3", AFTER)):
@@ -229,16 +232,12 @@ class ScenarioConsistency(unittest.TestCase):
             try:
                 s, e = w.period
                 out = run(Namespace(aws_endpoint=aws_url, prom=prom_url, region="us-east-1", start=s.isoformat(), end=e.isoformat(),
-                                    out=cls.tmp.name, run_id=rid, snapshot=None, state=state, no_state=False))
+                                    out=cls.tmp.name, run_id=rid, snapshot=None, state=state, no_state=False,
+                                    no_judge=True))   # rot detection is deterministic; the LLM judge is not under test (no cassettes for scenario worlds)
             finally:
                 aws.shutdown(); prom.shutdown()
+                world_mod.use(None)
             cls.diffs[rid] = json.loads((out / "slo.json").read_text())["diff"]
-        world_mod.use(None)
-
-    @classmethod
-    def tearDownClass(cls):
-        world_mod.use(None)
-        cls.tmp.cleanup()
 
     def keys(self, rid, state):
         return {e["key"] for e in self.diffs[rid][state]}
