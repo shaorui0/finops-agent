@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>规则层的来源与取舍</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">规则层的来源与取舍</h1>
+</header>
+<h1 id="规则层的来源与取舍">规则层的来源与取舍</h1>
+<p>本仓库的 <code>rules/</code> 从维护者的个人 context
+仓库（下称母版）蒸馏而来。母版是私有的，覆盖工作、生活、学习等所有领域；这里只保留和本项目相关、可以公开的部分，并改写成
+FinOps 语境。</p>
+<h2 id="映射">映射</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>本仓库</th>
+<th>母版</th>
+<th>怎么处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rules/SOUL.md</code></td>
+<td><code>SOUL.md</code></td>
+<td>保留核心真理（有用不表演、有观点、先查再问、内部大胆外部谨慎），身份改为本项目的
+FinOps agent；加上只读、不写入第三方数据、节省金额口径三条边界</td>
+</tr>
+<tr>
+<td><code>rules/USER.md</code></td>
+<td><code>USER.md</code></td>
+<td>只保留职业角色和工作偏好（少即是多、做完=能打开的东西、按阶段推进、可回滚的事直接做、逻辑链要有证据）</td>
+</tr>
+<tr>
+<td><code>rules/COMMUNICATION.md</code></td>
+<td><code>COMMUNICATION.md</code> + 输出格式契约</td>
+<td>保留语言风格与 agent
+交互原则；加上成本报告的口径规则和博客笔记规则</td>
+</tr>
+<tr>
+<td><code>rules/WORKSPACE.md</code></td>
+<td><code>WORKSPACE.md</code></td>
+<td>结构照搬（路由表 + 命名规则），内容换成本仓库的目录</td>
+</tr>
+<tr>
+<td><code>rules/axioms/</code></td>
+<td><code>axioms/</code>（50 条）</td>
+<td>选 11 条与”可信的 agent +
+成本治理”直接相关的，改写并加「本仓库怎么落地」；另加 2
+条项目原生公理</td>
+</tr>
+<tr>
+<td><code>rules/skills/INDEX.md</code></td>
+<td><code>skills/INDEX.md</code></td>
+<td>只索引本仓库的 skill</td>
+</tr>
+</tbody>
+</table>
+<h2 id="选了哪些公理">选了哪些公理</h2>
+<table>
+<thead>
+<tr>
+<th>本仓库</th>
+<th>母版</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FA01 可验证先于正确</td>
+<td>V02、T02</td>
+</tr>
+<tr>
+<td>FA02 隔离、处理、验证</td>
+<td>T07</td>
+</tr>
+<tr>
+<td>FA03 数据优于观点</td>
+<td>T04</td>
+</tr>
+<tr>
+<td>FA04 误差会级联放大</td>
+<td>X05</td>
+</tr>
+<tr>
+<td>FA05 先找大杠杆</td>
+<td>M03、X06</td>
+</tr>
+<tr>
+<td>FA06 成本治理是一个控制回路</td>
+<td>T13</td>
+</tr>
+<tr>
+<td>FA07 agent 是不可靠组件，SRE 是外壳</td>
+<td>T12、A04</td>
+</tr>
+<tr>
+<td>FA08 责任不能委派</td>
+<td>V01</td>
+</tr>
+<tr>
+<td>FA09 文档即长期记忆</td>
+<td>A05</td>
+</tr>
+<tr>
+<td>FA10 用机制暴露盲区</td>
+<td>V06</td>
+</tr>
+<tr>
+<td>FA11 上下文隔离</td>
+<td>T03</td>
+</tr>
+<tr>
+<td>FA12 以终为始</td>
+<td>项目原生</td>
+</tr>
+<tr>
+<td>FA13 潮汐不是浪费</td>
+<td>项目原生</td>
+</tr>
+</tbody>
+</table>
+<h2 id="刻意不带进来的">刻意不带进来的</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>内容</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>个人背景、人生哲学、职业规划、财务与生活信息</td>
+<td>私人信息，与本项目无关</td>
+</tr>
+<tr>
+<td>雇主名、内部系统名、工作数据、账号与路径</td>
+<td>公开仓库，且本项目不使用任何工作数据</td>
+</tr>
+<tr>
+<td>母版的记忆系统、定时任务、私有工具路径</td>
+<td>依赖母版的目录结构，在这里不成立</td>
+</tr>
+<tr>
+<td>其余 39 条公理（职业、教育、管理哲学等）</td>
+<td>与本项目的判断无直接关系；需要时按同样格式补进来</td>
+</tr>
+</tbody>
+</table>
+<h2 id="公开安全">公开安全</h2>
+<p><code>tools/check_rules.py</code> 扫描整个仓库：公开的模式（12
+位账号、access key、本地 home
+路径）写在代码里；私有的模式（雇主名等）写在被 gitignore 的
+<code>.leak_patterns.local</code>
+里，这样仓库本身不包含它要防的那些词。</p>
+<h2 id="以后怎么同步">以后怎么同步</h2>
+<p>D5 的 cron
+定期对比母版与本仓库：母版新增或修改的公理，如果和本项目相关，生成一个
+OpenSpec change
+提议同步，由维护者决定是否合入。本仓库原生的公理（FA12、FA13
+这类）也可以反向提议回母版。</p>
+</body>
+</html>
