@@ -159,7 +159,7 @@ One row per change, appended at acceptance. Full trail: `git log`, `openspec/cha
 | c0004-test-env | 10-24 | Synthetic account + fake AWS / Prometheus servers | Test data is hard because of where waste hides, not scale: idle-only detectors find < $100 of $8.7K/mo | [report](reports/0004-test-env.html) · [notes](notes/blog/0004-test-env.md) |
 | c0005-pipeline-skeleton | 10-24 | collect → snapshot → detectors → visibility chain → report | Deterministic layer hits 7/12; the other 5 need cross-source judgment and are handed over as Leads | [report](reports/0005-pipeline-skeleton.html) · [notes](notes/blog/0005-pipeline-skeleton.md) |
 | c0006-eval-ci | 10-24 | Scorer vs ground truth, regression baseline, Makefile, GitHub Actions; README in two parts | The first bugs the eval caught were in the scorer: a loose match inflated recall by 8 points | [report](reports/0006-eval-ci.html) · [notes](notes/blog/0006-eval-ci.md) |
-| c0007-finops-slo | — | FinOps SLOs, alert rules, rot detection across runs, inspection cadence | *in progress* | |
+| c0007-finops-slo | 10-24 | FinOps SLOs, waste budget, 11 alert rules with promtool tests, rot detection across runs, inspection cadence | A cleanup decays: the NAT anomaly took 27 days to surface, so inspection has to be daily | [report](reports/0007-finops-slo.html) · [notes](notes/blog/0007-finops-slo.md) · [doc](docs/FINOPS_SLO.md) |
 
 ### 2.5 Repo layout
 

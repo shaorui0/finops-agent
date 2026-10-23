@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>c0007 FinOps SLO</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">c0007 FinOps SLO</h1>
+</header>
+<h1 id="c0007-finops-slo">c0007-finops-slo</h1>
+<h2 id="why">Why</h2>
+<p>一次清理之后系统会重新腐烂：新资源不打
+tag、孤儿堆积、承诺漂移、运行时异常放大成本。要回答”这次做了，下次呢；什么时候又开始腐烂；FinOps
+的 SLO
+是什么”，就要把成本健康当成可靠性来管：SLI、SLO、浪费预算、告警、巡检节奏，以及跨运行的复发检测。</p>
+<h2 id="what-changes">What Changes</h2>
+<ul>
+<li><code>config/finops_slo.yaml</code> +
+<code>finops_agent/slo.py</code>：8 个
+SLI（浪费比例、归因覆盖、承诺利用率、孤儿年龄、异常发现时延、有效工作比例、可见性覆盖、修复时长），浪费预算；跨运行状态
+<code>runs/state.json</code>，finding 分为 new / persisting / resolved /
+regressed。</li>
+<li>每次运行导出 <code>finops_metrics.prom</code>（Prometheus
+文本格式，供 textfile collector / pushgateway）；报告新增 FinOps SLO
+一节。</li>
+<li><code>config/alerts/finops.rules.yml</code>：11 条规则，两组：SLO
+层（SLO
+违反、预算耗尽、快烧/慢烧、复发、巡检停摆）与信号层（busy-but-useless、重试风暴、NAT
+激增、dev 空转、可见性指标消失）；<code>finops.rules.test.yml</code> 用
+promtool 单测。</li>
+<li><code>make inspect</code>（cron
+调用）、<code>make alerts-test</code>；<code>ops/crontab.example</code>；CI
+增加 alerts-test。</li>
+<li><code>docs/FINOPS_SLO.md</code>：腐烂来源、SLI
+取舍、浪费预算、复发、巡检节奏。</li>
+</ul>
+<h2 id="capabilities">Capabilities</h2>
+<h3 id="new-capabilities">New Capabilities</h3>
+<ul>
+<li><code>finops-slo</code>：SLI 计算、SLO
+判定、浪费预算、跨运行状态与导出。</li>
+<li><code>finops-alerts</code>：告警规则及其单元测试。</li>
+</ul>
+<h3 id="modified-capabilities">Modified Capabilities</h3>
+<p>（无）</p>
+<h2 id="impact">Impact</h2>
+<p><code>python3 -m finops_agent run</code> 默认更新
+<code>runs/state.json</code>（<code>--no-state</code>
+关闭；<code>make demo/eval</code> 使用 <code>--no-state</code>
+以保持评估可重复）。</p>
+<h1 id="验收证据">验收证据</h1>
+<h2 id="make-test-check-alerts-test">5.1 make test / check /
+alerts-test</h2>
+<pre><code>Ran 3 tests in 0.068s
+OK
+Ran 7 tests in 1.378s
+OK
+Ran 32 tests in 2.019s
+OK
+check_rules: OK
+  SUCCESS: 11 rules found
+  SUCCESS</code></pre>
+<h2 id="两次运行rot-检测与导出">5.2 两次运行：rot 检测与导出</h2>
+<pre><code>run c0007-run1: 7 findings, 4 leads, invariants pass
+run c0007-run2: 7 findings, 4 leads, invariants pass
+c0007-run1 {&#39;new&#39;: 7, &#39;persisting&#39;: 0, &#39;resolved&#39;: 0, &#39;regressed&#39;: 0}
+c0007-run2 {&#39;new&#39;: 0, &#39;persisting&#39;: 7, &#39;resolved&#39;: 0, &#39;regressed&#39;: 0}
+promtool check metrics exit=0</code></pre>
+<h2 id="sli-表run1">SLI 表（run1）</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>SLI</th>
+<th>值</th>
+<th>目标</th>
+<th>状态</th>
+<th>证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>waste_ratio</td>
+<td>13.1%</td>
+<td>&lt;= 5%</td>
+<td>violated</td>
+<td>$1,143.60 billed-basis savings open / $8,712.90 spend；预算用掉
+263%（预算 $436）</td>
+</tr>
+<tr>
+<td>attribution_coverage</td>
+<td>25.4%</td>
+<td>&gt;= 90%</td>
+<td>violated</td>
+<td>$6,496.10 of $8,712.90 has no owner tag</td>
+</tr>
+<tr>
+<td>commitment_utilization</td>
+<td>60.5%</td>
+<td>&gt;= 90%</td>
+<td>violated</td>
+<td>60.48% in 2026-09, $682.91 unused</td>
+</tr>
+<tr>
+<td>orphan_max_age_days</td>
+<td>182 days</td>
+<td>&lt;= 14 days</td>
+<td>violated</td>
+<td>oldest orphan vol-0orph00000000c001, 182 days</td>
+</tr>
+<tr>
+<td>anomaly_time_to_detect_days</td>
+<td>27 days</td>
+<td>&lt;= 1 days</td>
+<td>violated</td>
+<td>NatGateway-Bytes rose 5.5x, starting 2026-09-04; first reported by
+this run, 27 days later</td>
+</tr>
+<tr>
+<td>useful_work_ratio</td>
+<td>0.0%</td>
+<td>&gt;= 95%</td>
+<td>violated</td>
+<td>worst fleet ingest-worker: 0.0% of jobs succeeded in the last
+day</td>
+</tr>
+<tr>
+<td>visibility_coverage</td>
+<td>50.0%</td>
+<td>&gt;= 100%</td>
+<td>violated</td>
+<td>useful_work_ratio=partial, rightsizing_headroom=missing,
+unit_cost_per_job=missing, cross_az_attribution=partial</td>
+</tr>
+<tr>
+<td>remediation_age_days</td>
+<td>—</td>
+<td>&lt;= 30 days</td>
+<td>no_data</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="eval-不回退">5.3 eval 不回退</h2>
+<pre><code>{&quot;recall&quot;: 0.5833, &quot;savings_recall&quot;: 0.1888, &quot;precision&quot;: 1.0, &quot;savings_accuracy&quot;: 1.0, &quot;step_agreement&quot;: 1.0, &quot;depth&quot;: {&quot;shallow_recall&quot;: 1.0, &quot;deep_recall&quot;: 0.4444}, &quot;leads&quot;: 4}
+gates: pass</code></pre>
+<h2 id="openspec-validate">5.4 openspec validate</h2>
+<pre><code>Change &#39;c0007-finops-slo&#39; is valid</code></pre>
+<h2 id="顺带发现">顺带发现</h2>
+<ul>
+<li>promtool 单测抓到我写的测试数据问题：小时级样本超过 Prometheus 5
+分钟回看窗口，for: 1d
+的计时在样本之间被重置。真实导出器按分钟级被抓取，测试改成 1
+分钟样本。</li>
+<li>文档里先写了快烧/慢烧告警，代码里还没有；为了不让文档领先于实现，补了
+finops_waste_usd / finops_waste_budget_usd 两个导出和两条规则，并加了
+promtool 测试。</li>
+<li>check_rules 拦下了对 runs/state.json 的引用：它是运行时生成、不进
+git 的文件，新 clone 里不存在。</li>
+<li>验收时发现 SLI 表把「≤ 1 天」显示成「≤ 100%」：报告用 target ≤ 1
+猜单位。改为在 finops_slo.yaml 显式声明 unit（ratio /
+days），报告与证据表都按 unit 格式化。</li>
+</ul>
+<p>演示运行报告（含 FinOps SLO
+一节）：<code>reports/0007-demo-run.html</code></p>
+</body>
+</html>

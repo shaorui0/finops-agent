@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>FinOps SLO：清理之后怎么办</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">FinOps SLO：清理之后怎么办</h1>
+</header>
+<h1 id="finops-slo清理之后怎么办">FinOps SLO：清理之后怎么办</h1>
+<p>一次成本优化做完，账单降下来，三个月后又涨回去。原因不是当时没做好，而是系统一直在产生新的浪费：新服务不打
+tag，临时卷忘了删，fleet 迁了架构承诺没跟上，一次下游故障让重试把 NAT
+账单放大五倍。成本健康和可用性一样会腐烂，所以要用同一套方法管：SLI、SLO、错误预算、告警、巡检节奏。</p>
+<h2 id="腐烂从哪来">腐烂从哪来</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>来源</th>
+<th>例子（测试账号里都有）</th>
+<th>哪个 SLI 先变</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>归因腐烂</td>
+<td>新资源不打 owner；tag 与实际用途对不上</td>
+<td>attribution_coverage</td>
+</tr>
+<tr>
+<td>孤儿堆积</td>
+<td>卷、快照、IP 在资源删掉后留下</td>
+<td>orphan_max_age_days</td>
+</tr>
+<tr>
+<td>承诺漂移</td>
+<td>架构迁移后 Savings Plan 覆盖不到新机型</td>
+<td>commitment_utilization</td>
+</tr>
+<tr>
+<td>运行时异常放大成本</td>
+<td>重试风暴、下游被删，计算和 NAT 一起涨</td>
+<td>useful_work_ratio、anomaly_time_to_detect_days</td>
+</tr>
+<tr>
+<td>可见性腐烂</td>
+<td>依赖的 metric 改名或消失</td>
+<td>visibility_coverage</td>
+</tr>
+<tr>
+<td>修复不落地</td>
+<td>finding 报了没人处理</td>
+<td>remediation_age_days、waste_ratio</td>
+</tr>
+</tbody>
+</table>
+<h2 id="slis">SLIs</h2>
+<p>定义在 <code>config/finops_slo.yaml</code>，每次运行由
+<code>finops_agent/slo.py</code> 计算，导出为 Prometheus 指标
+<code>finops_sli{sli=...}</code>。</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>SLI</th>
+<th>含义</th>
+<th>SLO</th>
+<th>节奏</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>waste_ratio</td>
+<td>已有证据、尚未处理的浪费（按已对账口径）/ 总花费</td>
+<td>≤ 5%</td>
+<td>每日</td>
+</tr>
+<tr>
+<td>attribution_coverage</td>
+<td>带 owner 的花费占比</td>
+<td>≥ 90%</td>
+<td>每周</td>
+</tr>
+<tr>
+<td>commitment_utilization</td>
+<td>Savings Plan 利用率</td>
+<td>≥ 90%</td>
+<td>每月</td>
+</tr>
+<tr>
+<td>orphan_max_age_days</td>
+<td>最老的孤儿资源存在天数</td>
+<td>≤ 14 天</td>
+<td>每周</td>
+</tr>
+<tr>
+<td>anomaly_time_to_detect_days</td>
+<td>成本异常开始到第一次被报出的天数</td>
+<td>≤ 1 天</td>
+<td>每日</td>
+</tr>
+<tr>
+<td>useful_work_ratio</td>
+<td>成功的工作 / 尝试的工作（对上报 job 结果的 fleet）</td>
+<td>≥ 95%</td>
+<td>每日</td>
+</tr>
+<tr>
+<td>visibility_coverage</td>
+<td>可见性需求中完全覆盖的比例</td>
+<td>100%</td>
+<td>每周</td>
+</tr>
+<tr>
+<td>remediation_age_days</td>
+<td>跨运行仍未关闭的最老 finding</td>
+<td>≤ 30 天</td>
+<td>每周</td>
+</tr>
+</tbody>
+</table>
+<p>几条取舍：</p>
+<ul>
+<li><strong>为什么 useful_work_ratio 是成本 SLI。</strong> CPU 60% 的
+fleet 看起来很健康，但成功 job 为 0
+时，它的全部计算都是浪费。只看利用率的成本监控会漏掉最贵的那种浪费。</li>
+<li><strong>为什么 anomaly_time_to_detect 单独算。</strong> 测试账号里
+NAT 异常从 09-04 开始，月底才被报出来：27
+天。按月看账单的团队，最快也要一个账期才发现。这个 SLI
+直接决定了巡检必须是每日的。</li>
+<li><strong>为什么 attribution_coverage 在测试账号里只有 25%。</strong>
+大部分未归因的花费是共享成本（NAT、跨
+AZ、承诺费用），本来就不挂在资源上。这个数字逼出一个决定：共享成本按什么规则分摊。</li>
+</ul>
+<h2 id="waste-budget">Waste budget</h2>
+<p>错误预算的对应物。每月浪费预算 = SLO 目标 × 花费（测试账号：5% ×
+$8,713 ≈ $436）。当前未处理的浪费是 $1,144，预算用掉 262%。</p>
+<p>预算的作用和可用性里一样：预算用完时，优化工作优先于新功能的扩容；预算充足时，不必为几美元的闲置
+IP 打断别人。告警看的是燃烧速度：</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>告警</th>
+<th>条件</th>
+<th>意义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>快烧</td>
+<td>一天新增浪费 &gt; 2 × 日预算</td>
+<td>有东西刚出问题（重试风暴、误开大机器）</td>
+</tr>
+<tr>
+<td>慢烧</td>
+<td>一周新增浪费 &gt; 周预算</td>
+<td>腐烂在累积（孤儿、tag 缺失）</td>
+</tr>
+<tr>
+<td>预算耗尽</td>
+<td><code>finops_waste_budget_used &gt; 1</code> 持续 1 小时</td>
+<td>本月优化工作优先</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rot">Rot</h2>
+<p>每次运行都和上一次比，<code>runs/state.json</code> 记录每条 finding
+第一次出现的日期和被关闭的运行：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>new</td>
+<td>这次第一次出现</td>
+</tr>
+<tr>
+<td>persisting</td>
+<td>上次就有，还没处理（计入 remediation_age_days）</td>
+</tr>
+<tr>
+<td>resolved</td>
+<td>上次有，这次没了</td>
+</tr>
+<tr>
+<td><strong>regressed</strong></td>
+<td>曾经被关闭，又回来了</td>
+</tr>
+</tbody>
+</table>
+<p>regressed
+是腐烂最直接的信号：修过的东西没有防住复发，说明缺的是机制（生命周期策略、tag
+强制、删除资源时的级联清理），而不是又一次手工清理。<code>FinOpsRegression</code>
+告警在它出现时立即触发。</p>
+<h2 id="cadence">Cadence</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>节奏</th>
+<th>跑什么</th>
+<th>看哪些 SLI</th>
+<th>谁处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>每日 01:15</td>
+<td><code>make inspect</code>（cron，见
+<code>ops/crontab.example</code>）</td>
+<td>waste_ratio、anomaly_time_to_detect、useful_work_ratio；燃烧速度</td>
+<td>值班 SRE 看告警</td>
+</tr>
+<tr>
+<td>每周</td>
+<td>同一份数据的周视图</td>
+<td>attribution、orphan age、visibility、remediation age；regressed
+列表</td>
+<td>各 owner 团队</td>
+</tr>
+<tr>
+<td>每月</td>
+<td>账单关账后</td>
+<td>commitment_utilization；架构级 finding；SLO 目标本身是否合理</td>
+<td>FinOps + 架构负责人</td>
+</tr>
+</tbody>
+</table>
+<p><code>FinOpsInspectionStale</code>
+盯着巡检本身：超过两天没有新的运行，说明 cron 或 agent
+坏了。监控系统自己也要被监控。</p>
+<h2 id="运行之间的早期信号">运行之间的早期信号</h2>
+<p>SLI
+每天才算一次。两次运行之间，原始指标上的规则先报警（<code>config/alerts/finops.rules.yml</code>
+的 <code>finops-signals</code> 组）：</p>
+<h3 id="busy-but-useless">Busy but useless</h3>
+<p><code>BusyButUselessFleet</code>：job 有尝试、没有成功，持续 30
+分钟。这是成本告警里少有的 page
+级别：每多一小时都是纯浪费，而且通常同时是一个可用性事故。</p>
+<h3 id="path-cost">Path cost</h3>
+<p><code>NatBytesSurge</code>：NAT 字节超过 7
+天均值的两倍。<code>RetryStorm</code>：每个 job
+重试超过一次。两者一起出现时，先找共同原因再分别算钱。</p>
+<h3 id="visibility">Visibility</h3>
+<p><code>CostVisibilityMetricMissing</code>：SLI
+依赖的指标消失。指标没了，SLI 不会报错，只会安静地变成
+no_data，所以要单独告警。</p>
+<h2 id="验证">验证</h2>
+<ul>
+<li><code>make alerts-test</code>：promtool
+检查规则语法并跑单元测试（busy-but-useless 触发而健康 fleet 不触发；SLO
+违反要持续一天才告警；regression
+立即告警；巡检超过两天未运行告警）。</li>
+<li><code>finops_agent/test_slo.py</code>：跨运行状态的完整生命周期（new
+→ persisting → resolved → regressed）。</li>
+<li><code>promtool check metrics</code> 校验导出的
+<code>finops_metrics.prom</code>。</li>
+</ul>
+</body>
+</html>

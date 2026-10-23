@@ -6,42 +6,50 @@
 
 slos:
   - id: waste_ratio
+    unit: ratio
     what: open, evidenced waste (billed basis) as a share of spend
     op: "<="
     target: 0.05
     budget: true            # the monthly waste budget is target x spend
     cadence: daily
   - id: attribution_coverage
+    unit: ratio
     what: share of spend that carries an owner tag
     op: ">="
     target: 0.90
     cadence: weekly
   - id: commitment_utilization
+    unit: ratio
     what: Savings Plan utilization over the period
     op: ">="
     target: 0.90
     cadence: monthly
   - id: orphan_max_age_days
+    unit: days
     what: age of the oldest orphaned resource (unattached volume, snapshot of a deleted volume)
     op: "<="
     target: 14
     cadence: weekly
   - id: anomaly_time_to_detect_days
+    unit: days
     what: days between the start of a cost anomaly and the run that first reported it
     op: "<="
     target: 1
     cadence: daily
   - id: useful_work_ratio
+    unit: ratio
     what: successful work / attempted work for fleets that report job outcomes
     op: ">="
     target: 0.95
     cadence: daily
   - id: visibility_coverage
+    unit: ratio
     what: share of required visibility SLIs that are fully covered by metrics
     op: ">="
     target: 1.0
     cadence: weekly
   - id: remediation_age_days
+    unit: days
     what: age of the oldest finding still open across runs
     op: "<="
     target: 30

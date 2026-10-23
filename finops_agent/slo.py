@@ -96,7 +96,7 @@ def evaluate(slis: dict, cfg: dict) -> list[dict]:
         else:
             good = v >= s["target"] if s["op"] == ">=" else v <= s["target"]
             status = "ok" if good else "violated"
-        row = {"id": s["id"], "what": s["what"], "op": s["op"], "target": s["target"], "value": v,
+        row = {"id": s["id"], "what": s["what"], "unit": s.get("unit", "ratio"), "op": s["op"], "target": s["target"], "value": v,
                "status": status, "cadence": s["cadence"], "evidence": slis["evidence"].get(s["id"], "")}
         if s.get("budget"):
             budget = s["target"] * slis["spend"]
@@ -150,6 +150,12 @@ def to_prometheus(rows: list[dict], diff: dict, run_id: str, ts: float) -> str:
                 "# HELP finops_waste_usd Open waste with billed-basis evidence", "# TYPE finops_waste_usd gauge",
                 f"finops_waste_usd {b['budget_used'] * b['budget_usd']:.6g}"]
     return "\n".join(out) + "\n"
+
+
+def fmt(value, unit: str) -> str:
+    if value is None:
+        return "—"
+    return f"{value:.1%}" if unit == "ratio" else f"{value:g} {unit}"
 
 
 def load_cfg(path: Path) -> dict:

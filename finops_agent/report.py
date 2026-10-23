@@ -4,6 +4,8 @@ from __future__ import annotations
 from collections import Counter
 from html import escape
 
+from finops_agent import slo
+
 STEPS = [
     ("M0", "以终为始", "Cost goals and the SLIs that measure them"),
     ("M1_visibility_attribution", "可见性与归因", "Can every dollar be traced to a service, owner and environment?"),
@@ -62,8 +64,8 @@ def render(run: dict) -> str:
                  f"<b class={'missing' if d['regressed'] else 'covered'}>{len(d['regressed'])}</b> regressed</p>")
         h.append("<div class=wrap><table><tr><th>SLI</th><th class=num>Value</th><th>Target</th><th>Status</th><th>Cadence</th><th>Evidence</th></tr>")
         for r in so["rows"]:
-            v = "—" if r["value"] is None else (f"{r['value']:.1%}" if r["target"] <= 1 else f"{r['value']:g}")
-            t = f"{r['op']} " + (f"{r['target']:.0%}" if r["target"] <= 1 else f"{r['target']:g}")
+            v = slo.fmt(r["value"], r["unit"])
+            t = f"{r['op']} {slo.fmt(r['target'], r['unit'])}"
             cls = {"ok": "covered", "violated": "missing"}.get(r["status"], "partial")
             extra = f" · budget used {r['budget_used']:.0%} of {_usd(r['budget_usd'])}" if r.get("budget_usd") else ""
             h.append(f"<tr><td><b>{escape(r['id'])}</b><div class=muted>{escape(r['what'])}</div></td><td class=num>{v}</td><td>{escape(t)}</td>"
