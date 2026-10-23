@@ -12,6 +12,9 @@ STATE=$TMP/state.json
 PIDS=()
 cleanup() { [ ${#PIDS[@]} -gt 0 ] && kill "${PIDS[@]}" 2>/dev/null || true; rm -rf "$TMP"; }
 trap cleanup EXIT
+for port in $AWS_PORT $PROM_PORT; do
+  if lsof -iTCP:$port -sTCP:LISTEN >/dev/null 2>&1; then echo "port $port is busy" >&2; exit 1; fi
+done
 
 # run <run-id> <world file or "base"> <start> <end>
 run() {
