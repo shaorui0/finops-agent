@@ -173,6 +173,7 @@ def _cost_growth(lead, cx, b):
         if pre and post:
             b.facts.append(Evidence("metrics", f"NAT 出站字节每天：{since} 之前 2 天 {pre * 288 / 1e9:,.1f} GB，之后 3 天内 {post * 288 / 1e9:,.1f} GB，{post / pre:.1f} 倍", f"avg_over_time({nat_metric}[2d]) x 288"))
     # counters that moved with the cost: generic co-movement scan around the first anomalous day
+    excess_gb_day = (post - pre) * 288 / 1e9 if pre and post else None
     for name in sorted(_counters(cx)):
         series = cx.q(f"sum by (status,reason) (increase({name}[2d]))", before)
         series_after = {tuple(sorted(m.items())): v for m, v in cx.q(f"sum by (status,reason) (increase({name}[2d]))", after)}
@@ -182,6 +183,9 @@ def _cost_growth(lead, cx, b):
             lbl = ",".join(f"{k}={x}" for k, x in sorted(m.items()) if x) or "-"
             if a is not None and (a > 0 or v > 0) and (v == 0 or abs(a / v - 1) > 1.0 or a == 0):
                 b.facts.append(Evidence("metrics", f"{name}{{{lbl}}} 每天：{since} 之前 {v / 2:,.0f}，之后 {a / 2:,.0f}", f"sum by (status,reason) (increase({name}[2d])) @ {since} / {since + timedelta(days=3)}"))
+                added = (a - v) / 2
+                if excess_gb_day and added > 0 and a > v:
+                    b.facts.append(Evidence("computed", f"NAT 多出的 {excess_gb_day:,.1f} GB/天 除以 {name}{{{lbl}}} 多出的 {added:,.0f} 次/天 = 每次 {excess_gb_day / added * 1000:,.1f} MB", "analysis"))
     b.candidates += [
         Candidate("nat_excess_monthly", round(min(excess, cx.mcost(nat_ids[0]) if nat_ids else excess), 2), "billed_14d_extrapolated",
                   f"NAT 处理费里比基线多出的部分，月化（上限为 NAT 网关近期月化花费）"),
@@ -192,7 +196,9 @@ def _cost_growth(lead, cx, b):
     b.default_step = "M6_architecture"
     b.scope = ("This lead covers the cost PATH. Whether the workload that drives the traffic is healthy is judged by a separate lead "
                "(fleet leads), so do not make 'fix the workload' your finding. Report what is structurally wrong with the path "
-               "and would still bill per GB after the workload is fixed.")
+               "and would still bill per GB after the workload is fixed. If the structural fix is clear but one fact is unverified (for example the "
+               "destination of the traffic), still report waste and say in the reasoning which check confirms it; a per-event payload that stays "
+               "constant across co-moving counters means each event moves a fixed-size object. Reserve insufficient_evidence for cases where no fix can be named.")
 
 
 def _transfer(lead, cx, b):
