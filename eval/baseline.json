@@ -1,0 +1,11 @@
+{
+  "recall": 0.5833,
+  "savings_recall": 0.1888,
+  "precision": 1.0,
+  "savings_accuracy": 1.0,
+  "step_agreement": 1.0,
+  "depth": {
+    "shallow_recall": 1.0,
+    "deep_recall": 0.4444
+  }
+}
