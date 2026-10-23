@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0011-remediation-plans</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0011-remediation-plans</h1>
+</header>
+<h1 id="c0011-修复计划dry-run">c0011 修复计划（dry-run）</h1>
+<h2 id="做了什么">做了什么</h2>
+<p><code>finops_agent/remediate.py</code>：把 findings 变成可审阅的
+dry-run
+计划。每个计划带命令文本（永不执行）、撤回成本及原因、回滚、前置检查、通知对象、依赖的证据。<code>apply</code>
+没有 <code>--approve &lt;plan_id&gt;</code>
+一律拒绝，批准后也只输出给人手动运行的脚本。</p>
+<h2 id="为什么">为什么</h2>
+<p>发现只说哪里浪费，不说怎么安全地处理。FA06：动作能不能自动化，看撤回成本；高撤回成本只给建议。</p>
+<h2 id="前后对比真实-run-t4-的-7-条-finding">前后对比（真实 run t4 的 7
+条 finding）</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>计划</th>
+<th>类型</th>
+<th>月节省 USD</th>
+<th>撤回成本</th>
+<th>模式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P-F04</td>
+<td>停机实例存储</td>
+<td>900.00</td>
+<td>medium（先做 AMI 再终止）</td>
+<td>命令</td>
+</tr>
+<tr>
+<td>P-F05</td>
+<td>孤儿快照</td>
+<td>190.00</td>
+<td>high（不可逆）</td>
+<td>仅隔离打标，删除不在计划内</td>
+</tr>
+<tr>
+<td>P-F02</td>
+<td>未挂载卷</td>
+<td>50.00</td>
+<td>low（先快照再删）</td>
+<td>命令</td>
+</tr>
+<tr>
+<td>P-F03</td>
+<td>空闲 EIP</td>
+<td>3.60</td>
+<td>medium（IP 可能拿不回）</td>
+<td>命令</td>
+</tr>
+<tr>
+<td>P-F06</td>
+<td>gp2 转 gp3</td>
+<td>20.00</td>
+<td>low（可改回，间隔 6 小时）</td>
+<td>命令</td>
+</tr>
+<tr>
+<td>P-F07</td>
+<td>Savings Plan 利用率低</td>
+<td>0</td>
+<td>high</td>
+<td>仅建议，无命令</td>
+</tr>
+</tbody>
+</table>
+<p>排序遵循 METHOD.md：删（M3）、降配（M4）、承诺（M5）。F01（tag
+错配，无节省）不生成计划。</p>
+<h2 id="验收">验收</h2>
+<p>见
+<code>openspec/changes/c0011-remediation-plans/evidence.md</code>：13
+个单测通过，<code>make test</code>、<code>make check</code>
+全绿，openspec validate 通过。</p>
+<h2 id="边界">边界</h2>
+<p>不执行任何命令：测试断言模块不 import subprocess/os
+等，<code>apply</code> 路径下 mock 的 subprocess/os.system 调用次数为
+0。集成到 <code>__main__</code>、报告留给后续 change。</p>
+</body>
+</html>
