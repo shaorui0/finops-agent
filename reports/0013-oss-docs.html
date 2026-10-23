@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0013-oss-docs</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0013-oss-docs</h1>
+</header>
+<h2 id="改了什么">改了什么</h2>
+<p>新增两个贡献者文档，不改代码和配置。</p>
+<ul>
+<li><code>CONTRIBUTING.md</code>：环境（Python
+3.12、<code>requirements.txt</code>）、四个测试命令、改动闭环摘要、硬规则、语言规则、加检测器、加测试场景和标准答案、eval
+基线如何卡 CI。</li>
+<li><code>docs/ARCHITECTURE.md</code>：<code>finops_agent/</code>、<code>testenv/</code>、<code>eval/</code>、<code>config/</code>、<code>hooks/</code>、<code>tools/</code>
+的模块地图，以及
+<code>snapshot.json</code>、<code>findings.json</code>、<code>visibility.json</code>、<code>slo.json</code>、<code>finops_metrics.prom</code>、<code>trace.jsonl</code>、<code>report.html</code>、<code>state.json</code>
+的字段契约。判断层（c0009）和处置方案（c0011）标为进行中。</li>
+</ul>
+<h2 id="为什么">为什么</h2>
+<p>仓库要开源。外部贡献者需要一个入口，说明怎么跑、怎么改、哪些规则不能破，以及产物长什么样。</p>
+<h2 id="验收证据">验收证据</h2>
+<p>完整输出见
+<code>openspec/changes/c0013-oss-docs/evidence.md</code>。</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>检查</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>相对链接与反引号路径</td>
+<td>CONTRIBUTING 34 项、ARCHITECTURE 54 项全部存在</td>
+</tr>
+<tr>
+<td>产物字段对照真实运行</td>
+<td>findings、lead、ranking、attribution、visibility 四环、slo
+行、snapshot、trace、prom 指标，漏记 0 项</td>
+</tr>
+<tr>
+<td><code>make check</code></td>
+<td>OK</td>
+</tr>
+<tr>
+<td><code>make test</code></td>
+<td>3 + 7 + 32 个测试通过</td>
+</tr>
+<tr>
+<td><code>make eval</code></td>
+<td>recall 0.5833，savings_recall 0.1888，gates: pass，与基线一致</td>
+</tr>
+<tr>
+<td><code>openspec validate</code></td>
+<td>valid</td>
+</tr>
+</tbody>
+</table>
+<h2 id="前后对比">前后对比</h2>
+<p>文档从 0 份到 2 份，代码和 eval 指标不变。</p>
+</body>
+</html>
