@@ -21,6 +21,7 @@
 | 分析流水线代码 | `finops_agent/`（入口 `python3 -m finops_agent run`） |
 | 可见性需求（第 ① 环） | `config/visibility_requirements.yaml` |
 | 运行产物（不进 git） | `runs/<run_id>/` |
+| 评估打分与基线 | `eval/`（`make eval`） |
 
 ## 命名
 

@@ -19,7 +19,7 @@ description: 本仓库每个改动的固定闭环：OpenSpec change → 实现 �
    - `spec+tasks`：specs/、tasks.md（做成什么样、怎么验收）
    - `impl`：代码 / 配置（可拆多个 impl commit，每个能独立通过单测）
    - `docs`：文档、README、skill
-   - `acceptance`：evidence.md + HTML 报告 + 博客笔记，正文列验收结论
+   - `acceptance`：evidence.md + HTML 报告 + 博客笔记 + README「Progress」表追加一行（Change / Date / What / Takeaway 取博客笔记第一条 / 报告与笔记链接），正文列验收结论
    没有的阶段跳过，n 按实际阶段数算。
 7. **汇报验收**：在 main agent 里把验收结果告诉用户——通过/失败、关键输出、HTML 报告路径。没汇报不算做完。
 8. 完成后 `openspec archive <id>`（可与下一个 change 一起做）。
