@@ -2,15 +2,17 @@ PY ?= python3
 AWS_PORT ?= 4566
 PROM_PORT ?= 9090
 RUN ?= local
+# replay | record | live, see finops_agent/llm.py
+export FINOPS_LLM_MODE ?= replay
 PROM_URL ?= http://127.0.0.1:9090
 AWS_ENDPOINT ?=
 
-.PHONY: test check servers demo eval stop alerts-test inspect
+.PHONY: test check servers demo eval record stop alerts-test inspect
 
 test:            ## all unit and end-to-end tests
 	$(PY) -W ignore -m unittest hooks/test_aws_readonly_guard.py
 	$(PY) -m unittest discover -s tools -p 'test_*.py'
-	$(PY) -W ignore -m unittest testenv.test_testenv finops_agent.test_pipeline finops_agent.test_slo eval.test_score
+	$(PY) -W ignore -m unittest testenv.test_testenv finops_agent.test_pipeline finops_agent.test_slo finops_agent.test_llm finops_agent.test_judge eval.test_score
 
 check:           ## rules layer + leak scan
 	$(PY) tools/check_rules.py
@@ -25,6 +27,9 @@ demo: servers    ## run the agent against the synthetic account
 
 eval: demo       ## score the run against ground truth; fails on trap/invariant violations or regression
 	$(PY) -m eval.score runs/$(RUN)/findings.json; status=$$?; $(MAKE) stop; exit $$status
+
+record:          ## re-record LLM cassettes with real `claude -p` calls (delete stale eval/cassettes/*.json first), then score
+	FINOPS_LLM_MODE=record $(MAKE) eval
 
 stop:
 	-@kill `cat .aws_server.pid` `cat .metrics_server.pid` 2>/dev/null; rm -f .aws_server.pid .metrics_server.pid

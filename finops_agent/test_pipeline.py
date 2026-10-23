@@ -84,7 +84,8 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(len(self.result["slo"]["diff"]["new"]), len(self.result["findings"]))
 
     def test_trace_is_read_only(self):
-        ops = [json.loads(l)["op"] for l in (self.out / "trace.jsonl").read_text().splitlines()]
+        calls = [json.loads(l) for l in (self.out / "trace.jsonl").read_text().splitlines()]
+        ops = [c["op"] for c in calls if c["source"] != "llm"]     # LLM calls are traced too, but they are not AWS/Prometheus reads
         self.assertTrue(ops)
         self.assertTrue(all(op.startswith(("describe_", "get_", "/api/v1/")) for op in ops), ops)
 

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0009-judgment-layer</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0009-judgment-layer</h1>
+</header>
+<h2 id="改了什么">改了什么</h2>
+<p>确定性检测器只能报”一跳”发现，<code>make eval</code> 里 5
+条深发现全漏。本 change
+加了判断层：每条线索先由代码取证并算好候选数字，再交给 LLM 单独判断；LLM
+只能选候选，不做算术。判断经过严格校验后变成发现，走和确定性发现一样的不变量。</p>
+<ul>
+<li><code>finops_agent/judge/</code>：取证器（NAT 涨价、无 ID
+数据传输、fleet 有效工作、空闲时段）、prompt、校验器、并发调用。</li>
+<li><code>finops_agent/llm.py</code>：record / replay / live
+客户端，cassette 键 <code>sha256(model + prompt)</code>，默认
+replay。</li>
+<li>新线索生成器：按小时 CPU 找出只忙一部分时间的非 ASG 实例（dev、夜间
+ETL、DR 温备）。</li>
+<li>报告：线索卡片显示判断与理由；新增「Agent 成本」。</li>
+</ul>
+<h2 id="前后对比">前后对比</h2>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>main</th>
+<th>本 change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>recall</td>
+<td>0.5833</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>deep recall</td>
+<td>0.4444</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>savings recall</td>
+<td>0.1888</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>precision</td>
+<td>1.0</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>trap 违反 / 不变量违反</td>
+<td>0 / 0</td>
+<td>0 / 0</td>
+</tr>
+</tbody>
+</table>
+<p>判断层的 5 条发现：NAT 路径（M6，$2,332.80）、跨
+AZ（M6，$759.85）、ingest fleet 忙但无用（M3，$1,468.80）、夜间 ETL
+常开（M6，$224.40）、dev 调度（M4，$0.00，被 Savings Plan 吸收）。web
+fleet 和 DR 温备被判为不是浪费。</p>
+<h2 id="约束是怎么落实的">约束是怎么落实的</h2>
+<ul>
+<li><strong>FA03
+数字来自代码</strong>：节省金额取自模型选中的候选，文字里的数字必须出现在证据里（1%
+容差）。</li>
+<li><strong>FA11 上下文隔离</strong>：每条线索一次调用，prompt
+只含这条线索的证据；测试用真实数据重建 prompt，与 cassette
+逐字比对。</li>
+<li><strong>FA01
+证据</strong>：模型必须引用证据编号，校验器核对编号存在。</li>
+<li><strong>不可信输入</strong>：tag 与 Name 只出现在
+<code>&lt;untrusted_metadata&gt;</code>
+块里；带注入文本的实例照样被标出。</li>
+<li><strong>FA07 确定性的闸</strong>：带 <code>dr</code> /
+<code>keep</code> 等意图 tag 的资源被判浪费，代码直接拒绝。</li>
+</ul>
+<h2 id="成本与可复现">成本与可复现</h2>
+<p>replay 模式从 <code>eval/cassettes/</code>（7
+个文件）读取，不需要网络和 API key，CI 里显式
+<code>FINOPS_LLM_MODE=replay</code>。7 次调用：23,349 输入 tokens，4,926
+输出 tokens，$0.1426，单次延迟 4.2 到 10.2 秒（录制值）。</p>
+<h2 id="局限">局限</h2>
+<ul>
+<li>prompt 的 rubric 是对着这个账号迭代出来的（6
+轮全量录制），数字不能当作泛化能力的证据；要换账号验证需要 c0010
+的”下个月”场景。</li>
+<li>重录会改变判断。一次重录里 NAT
+线索变成”证据不足”，靠补一条算出来的事实修复。cassette 是一次采样。</li>
+<li>取证器按线索种类写死，新增种类要新增取证器。</li>
+<li>第一批录制的 usage 异常（cache_read 约
+73K），原因没查清，已丢弃重录。</li>
+</ul>
+<h2 id="验收">验收</h2>
+<p>见
+<code>openspec/changes/c0009-judgment-layer/evidence.md</code>：<code>make eval</code>（replay）通过，PATH
+里没有 claude 也能跑，<code>"source": "llm"</code> 7
+条，<code>make test</code> 59
+项、<code>make check</code>、<code>openspec validate</code> 通过。</p>
+</body>
+</html>

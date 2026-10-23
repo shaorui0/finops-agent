@@ -4,7 +4,8 @@
   python3 -m finops_agent run --snapshot runs/<id>/snapshot.json    # re-analyze a frozen snapshot
 
 Writes runs/<run_id>/{snapshot.json, visibility.json, findings.json, slo.json, finops_metrics.prom,
-trace.jsonl, report.html} and updates runs/state.json (cross-run state for rot detection).
+trace.jsonl, report.html}
+The judgment layer calls an LLM through finops_agent/llm.py; FINOPS_LLM_MODE=replay|record|live (default replay). and updates runs/state.json (cross-run state for rot detection).
 """
 from __future__ import annotations
 
@@ -17,6 +18,8 @@ from pathlib import Path
 from finops_agent.analyze import Analyzer, check_invariants
 from finops_agent.collect import Collector, Config, Trace, save
 from finops_agent import report, slo, visibility
+from finops_agent.judge import gather, judge_leads
+from finops_agent.llm import LLMClient
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -39,12 +42,18 @@ def run(args) -> Path:
     save({"requirements": reqs, "plan": plan, "search": results, "gaps": gaps}, out / "visibility.json")
 
     a = Analyzer(snap, cfg.days).run()
+    judgments = []
+    if not getattr(args, "no_judge", False):
+        cx = gather.Ctx(snap, col, cfg.days)
+        a.leads += gather.idle_window_leads(cx, len(a.leads))
+        judged, judgments = judge_leads(a.leads, cx, LLMClient(), trace, len(a.findings) + 1)
+        a.findings += judged
     inv = check_invariants(a.findings)
     findings = [f.to_dict() for f in a.findings]
     result = {"run_id": run_id, "account": snap["identity"]["Account"], "period": snap["period"],
               "findings": findings, "leads": [l.to_dict() for l in a.leads], "ranking": a.ranking,
               "attribution": a.attribution_summary, "invariants": inv,
-              "visibility": {"gaps": gaps}, "trace": trace.calls}
+              "visibility": {"gaps": gaps}, "judgments": judgments, "trace": trace.calls}
     state_path = Path(args.state)
     prev = slo.load_state(state_path)
     slis = slo.compute_slis(result, snap, col, cfg.end, prev)
@@ -77,6 +86,7 @@ def main(argv=None):
     r.add_argument("--snapshot", default=None, help="analyze an existing snapshot instead of collecting")
     r.add_argument("--state", default=str(ROOT / "runs" / "state.json"), help="cross-run state for rot detection")
     r.add_argument("--no-state", action="store_true", help="do not update the cross-run state")
+    r.add_argument("--no-judge", action="store_true", help="skip the judgment layer (deterministic detectors only)")
     args = ap.parse_args(argv)
     if args.cmd == "run":
         run(args)

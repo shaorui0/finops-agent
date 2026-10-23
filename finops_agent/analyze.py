@@ -49,6 +49,8 @@ class Lead:
     evidence: list
     questions: list = field(default_factory=list)
     since: str | None = None   # first day of the anomaly, when the signal has one
+    kind: str = ""             # which evidence gatherer answers this lead (finops_agent/judge/gather.py)
+    params: dict = field(default_factory=dict)
 
     def to_dict(self):
         d = asdict(self)
@@ -273,13 +275,15 @@ class Analyzer:
                 jump = next(d for d, v in pts if v > head * 2)
                 self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{ut} 涨到 {tail / head:.1f} 倍，从 {jump} 开始", "M2_ranking",
                                        [Evidence("cost_explorer", f"{ut}：前 3 天平均 ${head:,.2f}/天，最近 7 天 ${tail:,.2f}/天", "GetCostAndUsage DAILY by USAGE_TYPE")],
-                                       ["那一天发生了什么变化？", "哪些工作负载在发这些流量？", "这条路径本身能不能避开？"], since=jump))
+                                       ["那一天发生了什么变化？", "哪些工作负载在发这些流量？", "这条路径本身能不能避开？"], since=jump,
+                                       kind="cost_growth", params={"usage_type": ut}))
         for g in self.s["cost_by_usage_type"][0]["Groups"]:
             svc, ut = g["Keys"]
             if "DataTransfer-Regional" in ut and _amt(g["Metrics"]) > 50:
                 self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{ut} 花费 ${_amt(g['Metrics']):,.0f}，没有资源 ID", "M6_architecture",
                                        [Evidence("cost_explorer", f"{svc} / {ut} ${_amt(g['Metrics']):,.2f}，用量 {float(g['Metrics']['UsageQuantity']['Amount']):,.0f} GB", "GetCostAndUsage by USAGE_TYPE")],
-                                       ["哪些实例对分处不同 AZ 并且互相通信？", "有没有按流量对的指标？"]))
+                                       ["哪些实例对分处不同 AZ 并且互相通信？", "有没有按流量对的指标？"],
+                                       kind="unattributed_transfer", params={"usage_type": ut}))
         busy = defaultdict(list)
         for i in self.s["instances"]:
             t = _tags(i)
@@ -288,7 +292,7 @@ class Analyzer:
         for asg, ids in busy.items():
             self.leads.append(Lead(f"L{len(self.leads) + 1:02d}", f"{asg}：{len(ids)} 台实例，这个 fleet 在干有用的活吗？", "M3_delete",
                                    [Evidence("ec2", f"{len(ids)} 台运行中实例", "DescribeAutoScalingGroups")],
-                                   ["CPU 说它很忙，可工作的成功率是多少？"]))
+                                   ["CPU 说它很忙，可工作的成功率是多少？"], kind="fleet_work", params={"asg": asg}))
 
 
 def check_invariants(findings: list[Finding]) -> list[str]:

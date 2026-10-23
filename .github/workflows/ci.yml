@@ -12,6 +12,8 @@ jobs:
       - run: make test
       - run: make alerts-test
       - run: make eval AWS_PORT=14566 PROM_PORT=19090 RUN=ci
+        env:
+          FINOPS_LLM_MODE: replay   # committed cassettes in eval/cassettes/: no network, no API key
       - if: always()
         uses: actions/upload-artifact@v4
         with:
