@@ -16,6 +16,8 @@
 | 博客笔记 | `notes/blog/` |
 | 安全护栏（hook） | `hooks/`，注册在 `.claude/settings.json` |
 | 仓库自检工具 | `tools/` |
+| 合成测试账号与两个测试服务器 | `testenv/`（入口 `testenv/README.md`） |
+| 成本优化方法（agent 的作业顺序） | `docs/METHOD.md` |
 
 ## 命名
 
