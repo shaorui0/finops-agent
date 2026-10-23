@@ -1,0 +1,715 @@
+{
+  "run_id": "t4",
+  "account": "000000000000",
+  "period": {
+    "Start": "2026-09-01",
+    "End": "2026-10-01"
+  },
+  "findings": [
+    {
+      "id": "F01",
+      "type": "misattributed_tags",
+      "method_step": "M1_visibility_attribution",
+      "title": "i-0a1b2c3d4e5f60501 的 tag 是 service=web，但它用的启动模板属于 ingest-asg（ingest-worker）",
+      "resources": [
+        "i-0a1b2c3d4e5f60501"
+      ],
+      "hops": [
+        "实例 tag 写的是一个服务",
+        "它的启动模板属于另一个 fleet",
+        "成本被归到了错误的 owner"
+      ],
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "tags service=web owner=team-web",
+          "ref": "DescribeInstances"
+        },
+        {
+          "source": "ec2",
+          "what": "启动模板 lt-0ing0000000000001 被 ['ingest-asg'] 使用",
+          "ref": "DescribeAutoScalingGroups"
+        }
+      ],
+      "monthly_savings_usd": 0.0,
+      "basis": "none",
+      "resource_spend_usd": 244.79999999999998,
+      "detector": "tag_vs_launch_template"
+    },
+    {
+      "id": "F02",
+      "type": "unattached_volume",
+      "method_step": "M3_delete",
+      "title": "500 GB gp2 卷 vol-0orph00000000c001 未挂载",
+      "resources": [
+        "vol-0orph00000000c001"
+      ],
+      "hops": [
+        "state=available"
+      ],
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "state=available, created 2026-04-02 08:00:00+00:00",
+          "ref": "DescribeVolumes"
+        },
+        {
+          "source": "cost_explorer",
+          "what": "$50.00/period",
+          "ref": "GetCostAndUsageWithResources"
+        }
+      ],
+      "monthly_savings_usd": 49.99999928571429,
+      "basis": "billed_14d_extrapolated",
+      "resource_spend_usd": 49.99999928571429,
+      "detector": "unattached_volumes"
+    },
+    {
+      "id": "F03",
+      "type": "idle_public_ip",
+      "method_step": "M3_delete",
+      "title": "Elastic IP 203.0.113.10 未关联任何资源",
+      "resources": [
+        "eipalloc-0aa0000000000001"
+      ],
+      "hops": [
+        "没有关联"
+      ],
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "没有 AssociationId",
+          "ref": "DescribeAddresses"
+        },
+        {
+          "source": "cost_explorer",
+          "what": "$3.60/period",
+          "ref": "GetCostAndUsageWithResources"
+        }
+      ],
+      "monthly_savings_usd": 3.6,
+      "basis": "billed_14d_extrapolated",
+      "resource_spend_usd": 3.6,
+      "detector": "idle_public_ips"
+    },
+    {
+      "id": "F04",
+      "type": "stopped_instance_storage",
+      "method_step": "M3_delete",
+      "title": "legacy-reporting 已停机（User initiated (2026-07-15 03:12:00 GMT)），卷仍在计费",
+      "resources": [
+        "i-0a1b2c3d4e5f60801",
+        "vol-0leg000000000b001"
+      ],
+      "hops": [
+        "实例计算费用为零",
+        "费用在挂载的卷上",
+        "owner tag 缺失"
+      ],
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "state=stopped; User initiated (2026-07-15 03:12:00 GMT)",
+          "ref": "DescribeInstances"
+        },
+        {
+          "source": "ec2",
+          "what": "2000 GB io1 10000 IOPS",
+          "ref": "DescribeVolumes"
+        },
+        {
+          "source": "cost_explorer",
+          "what": "卷 $900.00/周期",
+          "ref": "GetCostAndUsageWithResources"
+        }
+      ],
+      "monthly_savings_usd": 900.0,
+      "basis": "billed_14d_extrapolated",
+      "resource_spend_usd": 900.0,
+      "detector": "stopped_instance_storage"
+    },
+    {
+      "id": "F05",
+      "type": "orphan_snapshots",
+      "method_step": "M3_delete",
+      "title": "45 个已删卷的快照，以及 20 个没有任何模板在用的 AMI 的快照",
+      "resources": [
+        "vol-0gone00000000d001",
+        "ami-ingest-v1",
+        "ami-ingest-v2",
+        "ami-ingest-v3",
+        "ami-ingest-v4",
+        "ami-ingest-v5"
+      ],
+      "hops": [
+        "源卷已不存在",
+        "AMI 没有被任何启动模板或实例引用",
+        "保留：ami-ingest-v7、ami-web-v12（在用）"
+      ],
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "按源卷统计的孤儿快照：{'vol-0gone00000000d001': 45}",
+          "ref": "DescribeSnapshots + DescribeVolumes"
+        },
+        {
+          "source": "ec2",
+          "what": "已被替代的 AMI：['ami-ingest-v1', 'ami-ingest-v2', 'ami-ingest-v3', 'ami-ingest-v4', 'ami-ingest-v5']",
+          "ref": "DescribeImages + DescribeLaunchTemplateVersions"
+        },
+        {
+          "source": "cost_explorer",
+          "what": "$190.00/period",
+          "ref": "GetCostAndUsageWithResources"
+        }
+      ],
+      "monthly_savings_usd": 189.99995357142856,
+      "basis": "billed_14d_extrapolated",
+      "resource_spend_usd": 189.99995357142856,
+      "detector": "orphan_snapshots"
+    },
+    {
+      "id": "F06",
+      "type": "gp2_to_gp3",
+      "method_step": "M4_downsize_schedule",
+      "title": "1000 GB gp2 卷 vol-0db0000000000a001 可以换成 gp3",
+      "resources": [
+        "vol-0db0000000000a001"
+      ],
+      "hops": [
+        "卷类型 gp2",
+        "gp3 每 GB 便宜 20%，基线性能相同或更好"
+      ],
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "type=gp2 size=1000",
+          "ref": "DescribeVolumes"
+        },
+        {
+          "source": "cost_explorer",
+          "what": "$100.00/period",
+          "ref": "GetCostAndUsageWithResources"
+        }
+      ],
+      "monthly_savings_usd": 20.000000142857147,
+      "basis": "list_price",
+      "resource_spend_usd": 100.00000071428572,
+      "detector": "gp2_volumes"
+    },
+    {
+      "id": "F07",
+      "type": "savings_plan_underutilized",
+      "method_step": "M5_commitment",
+      "title": "Savings Plan 利用率 60.5%（本周期 $683 未用），不要再买承诺",
+      "resources": [
+        "sp-ec2-m5-01"
+      ],
+      "hops": [
+        "按月利用率：2026-06 100.0%，2026-07 100.0%，2026-08 84.7%，2026-09 60.5%",
+        "计划覆盖的机型族：['m5']",
+        "运行中实例按机型族：{'m5': 8, 'm6g': 4, 'r5': 1, 'c5': 7}"
+      ],
+      "evidence": [
+        {
+          "source": "cost_explorer",
+          "what": "利用率 [('2026-06', 100.0), ('2026-07', 100.0), ('2026-08', 84.7), ('2026-09', 60.48)]",
+          "ref": "GetSavingsPlansUtilization"
+        },
+        {
+          "source": "savingsplans",
+          "what": "机型族 ['m5']",
+          "ref": "DescribeSavingsPlans"
+        },
+        {
+          "source": "ec2",
+          "what": "运行中按机型族 {'m5': 8, 'm6g': 4, 'r5': 1, 'c5': 7}",
+          "ref": "DescribeInstances"
+        }
+      ],
+      "monthly_savings_usd": 0.0,
+      "basis": "none",
+      "resource_spend_usd": 682.91,
+      "detector": "savings_plan_utilization"
+    }
+  ],
+  "leads": [
+    {
+      "id": "L01",
+      "signal": "NatGateway-Bytes 涨到 5.5 倍，从 2026-09-04 开始",
+      "method_step": "M2_ranking",
+      "evidence": [
+        {
+          "source": "cost_explorer",
+          "what": "NatGateway-Bytes：前 3 天平均 $17.35/天，最近 7 天 $95.11/天",
+          "ref": "GetCostAndUsage DAILY by USAGE_TYPE"
+        }
+      ],
+      "questions": [
+        "那一天发生了什么变化？",
+        "哪些工作负载在发这些流量？",
+        "这条路径本身能不能避开？"
+      ],
+      "since": "2026-09-04"
+    },
+    {
+      "id": "L02",
+      "signal": "DataTransfer-Regional-Bytes 花费 $760，没有资源 ID",
+      "method_step": "M6_architecture",
+      "evidence": [
+        {
+          "source": "cost_explorer",
+          "what": "EC2 - Other / DataTransfer-Regional-Bytes $760.00，用量 38,000 GB",
+          "ref": "GetCostAndUsage by USAGE_TYPE"
+        }
+      ],
+      "questions": [
+        "哪些实例对分处不同 AZ 并且互相通信？",
+        "有没有按流量对的指标？"
+      ],
+      "since": null
+    },
+    {
+      "id": "L03",
+      "signal": "web-asg：4 台实例，这个 fleet 在干有用的活吗？",
+      "method_step": "M3_delete",
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "4 台运行中实例",
+          "ref": "DescribeAutoScalingGroups"
+        }
+      ],
+      "questions": [
+        "CPU 说它很忙，可工作的成功率是多少？"
+      ],
+      "since": null
+    },
+    {
+      "id": "L04",
+      "signal": "ingest-asg：6 台实例，这个 fleet 在干有用的活吗？",
+      "method_step": "M3_delete",
+      "evidence": [
+        {
+          "source": "ec2",
+          "what": "6 台运行中实例",
+          "ref": "DescribeAutoScalingGroups"
+        }
+      ],
+      "questions": [
+        "CPU 说它很忙，可工作的成功率是多少？"
+      ],
+      "since": null
+    }
+  ],
+  "ranking": {
+    "total": 8712.9,
+    "by_service": [
+      [
+        "EC2 - Other",
+        4676.0
+      ],
+      [
+        "Amazon Elastic Compute Cloud - Compute",
+        3161.8944
+      ],
+      [
+        "Savings Plans for AWS Compute usage",
+        682.9056
+      ],
+      [
+        "Amazon Simple Storage Service",
+        142.3
+      ],
+      [
+        "AmazonCloudWatch",
+        38.5
+      ],
+      [
+        "Amazon Virtual Private Cloud",
+        7.2
+      ],
+      [
+        "Amazon Route 53",
+        4.1
+      ]
+    ],
+    "top_usage_types": [
+      [
+        "EC2 - Other / NatGateway-Bytes",
+        2613.6
+      ],
+      [
+        "Savings Plans for AWS Compute usage / SavingsPlanRecurringFee",
+        1728.0
+      ],
+      [
+        "Amazon Elastic Compute Cloud - Compute / BoxUsage:c5.2xlarge",
+        1713.6
+      ],
+      [
+        "Amazon Elastic Compute Cloud - Compute / BoxUsage:m5.2xlarge",
+        829.44
+      ],
+      [
+        "EC2 - Other / DataTransfer-Regional-Bytes",
+        760.0
+      ],
+      [
+        "EC2 - Other / EBS:VolumeP-IOPS.piops",
+        650.0
+      ],
+      [
+        "Amazon Elastic Compute Cloud - Compute / BoxUsage:m5.xlarge",
+        552.96
+      ],
+      [
+        "EC2 - Other / EBS:VolumeUsage.piops",
+        250.0
+      ],
+      [
+        "Amazon Elastic Compute Cloud - Compute / BoxUsage:m6g.large",
+        221.76
+      ],
+      [
+        "EC2 - Other / EBS:SnapshotUsage",
+        220.0
+      ]
+    ],
+    "surprises": [
+      "EC2 - Other（$4,676）比 EC2 计算（$3,162）还大：存储、NAT 和数据传输占了大头"
+    ]
+  },
+  "attribution": {
+    "untagged_usd": 6496.1,
+    "total_usd": 8712.9,
+    "untagged_share": 0.7455726566355634,
+    "instances_without_owner": [
+      "i-0a1b2c3d4e5f60801"
+    ]
+  },
+  "invariants": [],
+  "visibility": {
+    "gaps": [
+      {
+        "sli": "idle_detection",
+        "decision": "删除或停掉没人用的资源（M3）",
+        "status": "covered",
+        "needs": [
+          {
+            "signal": "每实例 CPU 利用率",
+            "status": "covered",
+            "metrics": [
+              "aws_ec2_cpuutilization_average"
+            ],
+            "covered": 20,
+            "expected": 20,
+            "missing_scope": [],
+            "query": "{__name__=~\"aws_ec2_cpuutilization_average\"}"
+          },
+          {
+            "signal": "每实例网络流量",
+            "status": "covered",
+            "metrics": [
+              "aws_ec2_network_out_bytes_sum"
+            ],
+            "covered": 20,
+            "expected": 20,
+            "missing_scope": [],
+            "query": "{__name__=~\"aws_ec2_network_out_.*\"}"
+          }
+        ]
+      },
+      {
+        "sli": "useful_work_ratio",
+        "decision": "忙碌的 fleet 也可能是浪费；比较完成的工作与尝试的工作（M3）",
+        "status": "partial",
+        "needs": [
+          {
+            "signal": "按状态的 job 结果",
+            "status": "partial",
+            "metrics": [
+              "ingest_jobs_total"
+            ],
+            "covered": 1,
+            "expected": 2,
+            "missing_scope": [
+              "etl-runner"
+            ],
+            "query": "{__name__=~\".*_jobs_total\"}"
+          }
+        ]
+      },
+      {
+        "sli": "rightsizing_headroom",
+        "decision": "每个资源维度的余量都已知，才降配（M4）",
+        "status": "missing",
+        "needs": [
+          {
+            "signal": "每实例 CPU 利用率",
+            "status": "covered",
+            "metrics": [
+              "aws_ec2_cpuutilization_average"
+            ],
+            "covered": 20,
+            "expected": 20,
+            "missing_scope": [],
+            "query": "{__name__=~\"aws_ec2_cpuutilization_average\"}"
+          },
+          {
+            "signal": "每实例内存利用率",
+            "status": "missing",
+            "metrics": [],
+            "covered": 0,
+            "expected": 20,
+            "missing_scope": [
+              "i-0a1b2c3d4e5f60101",
+              "i-0a1b2c3d4e5f60102",
+              "i-0a1b2c3d4e5f60103",
+              "i-0a1b2c3d4e5f60104",
+              "i-0a1b2c3d4e5f60201",
+              "i-0a1b2c3d4e5f60202",
+              "i-0a1b2c3d4e5f60203",
+              "i-0a1b2c3d4e5f60204"
+            ],
+            "query": "{__name__=~\".*mem.*\"}"
+          }
+        ]
+      },
+      {
+        "sli": "latency_slo_guard",
+        "decision": "保护延迟 SLO 的容量不是浪费（M4，潮汐陷阱）",
+        "status": "covered",
+        "needs": [
+          {
+            "signal": "每服务 p99 延迟",
+            "status": "covered",
+            "metrics": [
+              "http_request_duration_p99_seconds"
+            ],
+            "covered": 2,
+            "expected": 2,
+            "missing_scope": [],
+            "query": "{__name__=~\"http_request_duration.*\"}"
+          }
+        ]
+      },
+      {
+        "sli": "schedule_detection",
+        "decision": "已知时段外空闲的环境按时段调度（M4）",
+        "status": "covered",
+        "needs": [
+          {
+            "signal": "每服务请求速率",
+            "status": "covered",
+            "metrics": [
+              "http_requests_total"
+            ],
+            "covered": 3,
+            "expected": 3,
+            "missing_scope": [],
+            "query": "{__name__=~\"http_requests_total\"}"
+          }
+        ]
+      },
+      {
+        "sli": "unit_cost_per_job",
+        "decision": "单位工作的成本，用来判断花得值不值（M2–M6）",
+        "status": "missing",
+        "needs": [
+          {
+            "signal": "job 数",
+            "status": "covered",
+            "metrics": [
+              "ingest_jobs_total"
+            ],
+            "covered": 1,
+            "expected": 1,
+            "missing_scope": [],
+            "query": "{__name__=~\".*_jobs_total\"}"
+          },
+          {
+            "signal": "工作量（处理的字节或记录数）",
+            "status": "missing",
+            "metrics": [],
+            "covered": 0,
+            "expected": 1,
+            "missing_scope": [
+              "ingest-worker"
+            ],
+            "query": "{__name__=~\".*_(bytes|records)_processed_total\"}"
+          }
+        ]
+      },
+      {
+        "sli": "cross_az_attribution",
+        "decision": "把跨 AZ 数据传输归到造成它的服务对上（M6）",
+        "status": "partial",
+        "needs": [
+          {
+            "signal": "服务与其对端之间的字节数",
+            "status": "partial",
+            "metrics": [
+              "db_client_bytes_total"
+            ],
+            "covered": 1,
+            "expected": 3,
+            "missing_scope": [
+              "ingest-worker",
+              "web"
+            ],
+            "query": "{__name__=~\".*_client_bytes_total\"}"
+          }
+        ]
+      },
+      {
+        "sli": "nat_attribution",
+        "decision": "把 NAT 处理字节归到发出它们的工作负载上（M6）",
+        "status": "covered",
+        "needs": [
+          {
+            "signal": "每网关 NAT 字节数",
+            "status": "covered",
+            "metrics": [
+              "aws_natgateway_bytes_out_to_destination_sum"
+            ],
+            "covered": 1,
+            "expected": 1,
+            "missing_scope": [],
+            "query": "{__name__=~\"aws_natgateway_bytes_.*\"}"
+          }
+        ]
+      }
+    ]
+  },
+  "slo": {
+    "rows": [
+      {
+        "id": "waste_ratio",
+        "what": "已有证据、尚未处理的浪费（账单口径）占花费的比例",
+        "unit": "ratio",
+        "op": "<=",
+        "target": 0.05,
+        "value": 0.13125365295792937,
+        "status": "violated",
+        "cadence": "daily",
+        "evidence": "未处理的账单口径节省 $1,143.60 / 花费 $8,712.90",
+        "budget_usd": 435.645,
+        "budget_used": 2.625073059158588
+      },
+      {
+        "id": "attribution_coverage",
+        "what": "带 owner tag 的花费占比",
+        "unit": "ratio",
+        "op": ">=",
+        "target": 0.9,
+        "value": 0.2544273433644366,
+        "status": "violated",
+        "cadence": "weekly",
+        "evidence": "$8,712.90 中有 $6,496.10 没有 owner tag"
+      },
+      {
+        "id": "commitment_utilization",
+        "what": "本周期 Savings Plan 利用率",
+        "unit": "ratio",
+        "op": ">=",
+        "target": 0.9,
+        "value": 0.6048,
+        "status": "violated",
+        "cadence": "monthly",
+        "evidence": "2026-09 利用率 60.48%，$682.91 未用"
+      },
+      {
+        "id": "orphan_max_age_days",
+        "what": "最老的孤儿资源（未挂载卷、已删卷的快照）存在天数",
+        "unit": "days",
+        "op": "<=",
+        "target": 14,
+        "value": 182,
+        "status": "violated",
+        "cadence": "weekly",
+        "evidence": "最老的孤儿 vol-0orph00000000c001，182 天"
+      },
+      {
+        "id": "anomaly_time_to_detect_days",
+        "what": "成本异常开始到第一次被报出之间的天数",
+        "unit": "days",
+        "op": "<=",
+        "target": 1,
+        "value": 27,
+        "status": "violated",
+        "cadence": "daily",
+        "evidence": "NatGateway-Bytes 涨到 5.5 倍，从 2026-09-04 开始；本次运行首次报出，晚了 27 天"
+      },
+      {
+        "id": "useful_work_ratio",
+        "what": "上报 job 结果的 fleet 中，成功的工作 / 尝试的工作",
+        "unit": "ratio",
+        "op": ">=",
+        "target": 0.95,
+        "value": 0.0,
+        "status": "violated",
+        "cadence": "daily",
+        "evidence": "最差的 fleet ingest-worker：最近一天 0.0% 的 job 成功"
+      },
+      {
+        "id": "visibility_coverage",
+        "what": "可见性需求中被指标完全覆盖的比例",
+        "unit": "ratio",
+        "op": ">=",
+        "target": 1.0,
+        "value": 0.5,
+        "status": "violated",
+        "cadence": "weekly",
+        "evidence": "useful_work_ratio=partial, rightsizing_headroom=missing, unit_cost_per_job=missing, cross_az_attribution=partial"
+      },
+      {
+        "id": "remediation_age_days",
+        "what": "跨运行仍未关闭的最老发现的天数",
+        "unit": "days",
+        "op": "<=",
+        "target": 30,
+        "value": null,
+        "status": "no_data",
+        "cadence": "weekly",
+        "evidence": ""
+      }
+    ],
+    "diff": {
+      "new": [
+        {
+          "key": "misattributed_tags|i-0a1b2c3d4e5f60501",
+          "finding": "F01"
+        },
+        {
+          "key": "unattached_volume|vol-0orph00000000c001",
+          "finding": "F02"
+        },
+        {
+          "key": "idle_public_ip|eipalloc-0aa0000000000001",
+          "finding": "F03"
+        },
+        {
+          "key": "stopped_instance_storage|i-0a1b2c3d4e5f60801,vol-0leg000000000b001",
+          "finding": "F04"
+        },
+        {
+          "key": "orphan_snapshots|ami-ingest-v1,ami-ingest-v2,ami-ingest-v3,ami-ingest-v4,ami-ingest-v5,vol-0gone00000000d001",
+          "finding": "F05"
+        },
+        {
+          "key": "gp2_to_gp3|vol-0db0000000000a001",
+          "finding": "F06"
+        },
+        {
+          "key": "savings_plan_underutilized|sp-ec2-m5-01",
+          "finding": "F07"
+        }
+      ],
+      "persisting": [],
+      "resolved": [],
+      "regressed": []
+    },
+    "previous_runs": 0
+  }
+}
