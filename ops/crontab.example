@@ -1,0 +1,5 @@
+# FinOps inspection cadence (see docs/FINOPS_SLO.md#cadence).
+# Each run updates runs/state.json and writes runs/<id>/finops_metrics.prom;
+# copy that file into the node_exporter textfile directory so the alert rules see it.
+# m  h  dom mon dow  command
+  15 1  *   *   *    cd /path/to/finops-agent && make inspect && cp runs/inspect-*/finops_metrics.prom /var/lib/node_exporter/textfile/finops.prom
