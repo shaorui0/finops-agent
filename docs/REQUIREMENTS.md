@@ -27,7 +27,8 @@
 | R16 | 接个人 AWS 账号，**只读**。只读由项目级 hook 实现并注册在本项目 `.claude/settings.json`，这本身是项目的生产安全设计；AWS 侧再加一层限制（独立账号、只读角色等）**先只列需求，不改 AWS** | 2344 | 本项目 |
 | R17 | 可见性用 **本地搭的 Grafana**。指标分两步：先由 agent 分析「需要哪些 metric」，再去系统里查「有没有」，差集就是可见性缺口 | 2345 | 本项目 |
 | R18 | 个人主页（shaorui0.github.io）顶部加 **FinOps Agent** 入口页：链到博客、GitHub 地址、我的思考过程、按阶段画出的流程图、每个 commit 的交付物；按阶段展示，不一次性端出 | 2345 | 主页仓库 + 本项目 |
-| R15 | **项目目的是学 Harness Engineering 最佳实践、体现对 AI Agent 的掌控力**，不是为做而做，也不只为解决成本问题。取舍冲突时，过程的可展示性优先于功能广度 | 2341 | 全局原则 |
+| R19 | 可见性**以终为始**、一环套一环：先分析要什么可见性，第二轮去系统里找对应 metric；找 metric 本身也是一个有计划、有结果的任务；最后判断每个指标能否支撑 SLA/SLI | 2348 | 本项目，D1b |
+| R15 | **项目目的是学 Harness Engineering 最佳实践、体现对 AI Agent 的掌控力**，不是为做而做，也不只为解决成本问题。取舍冲突时，过程的可展示性优先于功能广度 ；并且要覆盖**工业级使用 agent 的方方面面**，本项目就是那个完整样例（覆盖面见 §5） | 2341、2347 | 全局原则 |
 
 ## 3. 交付物
 
@@ -38,7 +39,7 @@
 | D2 | **Eval harness**：植入已知浪费的合成数据集（golden set）+ 自动打分 | 指标至少：finding precision/recall、证据引用率、**savings ≤ 实际花费**不变量、跨运行稳定性；CI 里能跑 | R7 |
 | D3 | **安全 / 风险用例集**：tag 值、资源名、描述字段里埋 prompt 注入；无证据数字（幻觉）检测 | 注入用例全部不改变 agent 行为；报告里无来源的数字 = 0 | R6 |
 | D4 | 修复计划（dry-run）：把 finding 转成可审阅的变更计划，人工 gate 后才执行 | 默认只输出 plan；执行路径需要显式确认；有回滚说明 | R2 R4 |
-| D1b | 可见性缺口分析：agent 先列所需 metric，再查本地 Grafana / 数据源里有没有，输出缺口表 | 缺口表每行有「需要的理由」和「查询证据」 | R17 |
+| D1b | **可见性链（以终为始）**，四环，每环单独产出、单独验收，上一环的结果是下一环的输入：① 从成本目标反推需要哪些可见性（成本 SLO/SLI 是什么）② 制定找 metric 的计划（去哪找、怎么查）③ 执行计划，产出 metric 清单（含查询证据）④ 逐个 metric 判断能否支撑某个 SLI，差集即缺口 | 每环一份产物 + 验收；缺口表每行有「为哪个 SLI 需要」和「查询证据」 | R17 R19 |
 | D5 | 主动 loop：cron 定期跑分析 + eval 回归 + 公理蒸馏，写进 `context/` | 每次运行留一份可 diff 的产物；回归下降会报出来 | R8 R10 |
 | D6 | 开源打磨：README、架构图、quickstart（demo 数据 5 分钟跑起来）、LICENSE、贡献指南 | 新人 clone 后不需要 AWS 账号即可跑 demo | R11 |
 | D7 | 面试叙事：一页「这个项目证明了什么」，按 R1 的 Agent Engineer 口径 | 每个论点链接到具体 change / eval 结果 | R1 |
@@ -56,16 +57,25 @@
 - **LLM 只做判断层**。拉数、聚合、计算交给确定性代码（脚本/SQL），LLM 负责归类、解释、排序和计划；这样每个数字都能复算。
 - 每个 change：`openspec` change → 实现 → 验收（测试/eval）→ HTML 报告 + 博客笔记 → 一个 commit。流程写在 `.claude/skills/finops-change-loop/SKILL.md`。
 
-## 5. Agent Engineer 叙事映射（D7 的骨架）
+## 5. Harness Engineering 覆盖面（R15 的验收清单，也是 D7 的骨架）
 
-| 面试主题 | 在本项目里的证据 |
-|---|---|
-| Context engineering（上限） | `context/` 蒸馏层；FinOps 领域模型作为 context 喂给 agent |
-| Harness（下限） | 只读边界、注入隔离、写操作 gate |
-| 幻觉 / 注入 | D3 用例集 + 无出处数字检测 |
-| 评估与迭代 | D2 golden set + 指标 + 每次 change 的前后对比 |
-| Spec 驱动 | OpenSpec change 历史 = 设计决策留痕 |
-| 自动化 loop | 被动：CI / hook；主动：cron（D5） |
+工业级使用 agent 的各个面，每一面都要在本项目里有可指认的实现。状态随 change 更新。
+
+| 面 | 本项目里的实现 | 状态 |
+|---|---|---|
+| Context engineering（上限） | FinOps 领域模型作为 context；`context/` 蒸馏层（D5） | 计划 |
+| 权限与边界（下限） | 项目 hook `aws_readonly_guard.py` + AWS 侧 H1–H7 | hook ✅ c0001；AWS 侧待建 |
+| Spec 驱动 | 每个 change 一个 OpenSpec change，proposal/spec/tasks/evidence 留痕 | ✅ 从 c0001 起 |
+| 任务分解 / 计划 | 可见性链四环（D1b），每环先计划后执行 | 计划 |
+| 工具设计 | 确定性脚本拉数和计算，LLM 只做判断层 | 计划 |
+| 评估 | golden set + 指标 + `savings ≤ spend` 不变量（D2） | 计划 |
+| 幻觉 / 注入防御 | D3 用例集；无出处数字检测 | 计划 |
+| 人工 gate / 回滚 | 写路径只出 plan，人工确认后执行（D4） | 计划 |
+| 验收 loop | 被动：hook / 单测 / CI；主动：cron 回归（D5） | 单测 ✅；CI、cron 待建 |
+| 可观测性（agent 自身） | 每次运行留 trace：调用了哪些工具、花了多少 token / API 费 | 待设计 |
+| 多 agent 编排 | 可见性链各环可分派 subagent，主 agent 只合并 | 待设计 |
+| 记忆 / 知识沉淀 | 公理蒸馏进 `context/`；每 change 一份博客笔记 | 笔记 ✅；蒸馏待建 |
+| 可展示性 | 每 change 一份 HTML 报告；主页阶段页（D8） | 报告 ✅；主页待建 |
 
 ## 6. 已确认（2026-10-23 23:44–23:45）
 
@@ -76,6 +86,8 @@
 | Q3 LICENSE | MIT |
 | Q4 名字 | GitHub 仓库 `finops-agent`（FinOps Agent） |
 
-## 7. 待确认
+## 7. 已确认（23:48 之后）
 
-- Q5 个人主页是哪个仓库？`blog-system` 部署在 `shaorui0.github.io/tech`，根域名 `shaorui0.github.io` 的仓库没在本地找到。
+| Q | 决定 |
+|---|---|
+| Q5 主页 | `https://shaorui0.github.io/#/cn`。源码在 context-infrastructure 的 `projects/career_interview/resume_site`（`content/*.md` 是事实源，`build_content.py` 构建），部署仓库 `shaorui0/shaorui0.github.io`。D8 在这里加 FinOps Agent 入口 |

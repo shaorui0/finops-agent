@@ -5,7 +5,7 @@ description: 本仓库每个改动的固定闭环：OpenSpec change → 实现 �
 
 # finops-change-loop
 
-一个 change = 一个 OpenSpec change = 一个 commit。没有验收证据的 change 不提交。
+一个 change = 一个 OpenSpec change = **按阶段的若干个 commit**（不一把梭哈）。没有验收证据的 change 不算完成。
 
 ## 步骤
 
@@ -14,7 +14,13 @@ description: 本仓库每个改动的固定闭环：OpenSpec change → 实现 �
 3. **验收**：跑 tasks 里的验收命令，把输出原样存到 `openspec/changes/<id>/evidence.md`。失败就回到 2，不往下走。
 4. **HTML 报告**：`reports/<NNNN-slug>.html`。内容：改了什么、为什么、验收证据、前后对比（有 eval 时给指标）。本地 HTML 文件，不发 Claude artifact。可以先写 md 再 `pandoc -s --metadata title=<slug> in.md -o reports/<NNNN-slug>.html`。
 5. **博客笔记**：`notes/blog/<NNNN-slug>.md`。只列核心想法、踩的坑、反直觉的结论，bullet 即可，**不做写作润色**。
-6. **提交**：`git add` 本 change 涉及的文件（不用 `-A`），commit message 首行 `<NNNN-slug>: <一句话>`，正文列验收结论。
+6. **按阶段提交**：每个阶段做完就 commit，只 `git add` 该阶段的文件（不用 `-A`）。message 首行 `c<NNNN>-<slug> [k/n <阶段>]: <一句话>`：
+   - `proposal`：proposal.md（为什么）
+   - `spec+tasks`：specs/、tasks.md（做成什么样、怎么验收）
+   - `impl`：代码 / 配置（可拆多个 impl commit，每个能独立通过单测）
+   - `docs`：文档、README、skill
+   - `acceptance`：evidence.md + HTML 报告 + 博客笔记，正文列验收结论
+   没有的阶段跳过，n 按实际阶段数算。
 7. **汇报验收**：在 main agent 里把验收结果告诉用户——通过/失败、关键输出、HTML 报告路径。没汇报不算做完。
 8. 完成后 `openspec archive <id>`（可与下一个 change 一起做）。
 
