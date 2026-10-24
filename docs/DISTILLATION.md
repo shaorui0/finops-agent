@@ -10,8 +10,8 @@
 | `rules/USER.md` | `USER.md` | 只保留职业角色和工作偏好（少即是多、做完=能打开的东西、按阶段推进、可回滚的事直接做、逻辑链要有证据） |
 | `rules/COMMUNICATION.md` | `COMMUNICATION.md` + 输出格式契约 | 保留语言风格与 agent 交互原则；加上成本报告的口径规则和博客笔记规则 |
 | `rules/WORKSPACE.md` | `WORKSPACE.md` | 结构照搬（路由表 + 命名规则），内容换成本仓库的目录 |
-| `rules/axioms/` | `axioms/`（50 条） | 选 11 条与"可信的 agent + 成本治理"直接相关的，改写并加「本仓库怎么落地」；另加 2 条项目原生公理 |
-| `rules/skills/INDEX.md` | `skills/INDEX.md` | 只索引本仓库的 skill |
+| `rules/axioms/` | 母版的 axioms 目录（50 条） | 选 11 条与"可信的 agent + 成本治理"直接相关的，改写并加「本仓库怎么落地」；另加 2 条项目原生公理 |
+| `rules/skills/INDEX.md` | 母版的 skills 索引 | 只索引本仓库的 skill |
 
 ## 选了哪些公理
 
@@ -47,3 +47,5 @@
 ## 以后怎么同步
 
 D5 的 cron 定期对比母版与本仓库：母版新增或修改的公理，如果和本项目相关，生成一个 OpenSpec change 提议同步，由维护者决定是否合入。本仓库原生的公理（FA12、FA13 这类）也可以反向提议回母版。
+
+相关：[`NARRATIVE.md`](NARRATIVE.md) 里「Context engineering」一项给出规则层的证据与边界，[`../rules/WORKSPACE.md`](../rules/WORKSPACE.md) 是目录路由。
