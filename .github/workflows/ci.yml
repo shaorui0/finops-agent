@@ -11,7 +11,7 @@ jobs:
       - run: make check
         env:
           # "" = rules + leak checks only; "1" also runs the docs checks (links, Chinese headings). Flip to "1" once the docs rewrite is merged.
-          DOCS_CHECK: ""
+          DOCS_CHECK: "1"
       - run: make test
       - run: make alerts-test
       - run: make eval AWS_PORT=14566 PROM_PORT=19090 RUN=ci

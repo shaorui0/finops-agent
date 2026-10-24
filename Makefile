@@ -9,8 +9,8 @@ AWS_ENDPOINT ?=
 
 .PHONY: test check check-docs servers demo eval record stop alerts-test inspect rot-demo
 
-# DOCS_CHECK=1 adds the docs checks to `make check`; CI sets it (see .github/workflows/ci.yml)
-DOCS_CHECK ?=
+# Docs checks (links, heading language) are on by default; DOCS_CHECK= (empty) turns them off
+DOCS_CHECK ?= 1
 
 # Every test module in the repo, found by discovery (a new test_*.py is picked up without editing this file).
 # In-process servers bind port 0 (OS-chosen) except eval/heldout.py, whose block is 47500-47599 (FINOPS_HELDOUT_PORTS overrides).

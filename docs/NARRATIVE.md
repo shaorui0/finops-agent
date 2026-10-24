@@ -75,7 +75,7 @@
 ### 12. 人读层：给读者的层也要可生成、可测试
 
 - 主张：六张图（架构、数据流、可见性链、方法七步、腐烂生命周期、harness 分层）有 mermaid 源和渲染的 SVG，导读页由 `tools/build_index.py` 从仓库状态生成，测试守住链接、图的新鲜度和每个 change 都被列出；文档的语言、链接和标题由 `make check` 检查。手写导读必然和仓库脱节。
-- 证据：[`diagrams/README.md`](diagrams/README.md)、[`../reports/index.html`](../reports/index.html)、[`../tools/build_index.py`](../tools/build_index.py)、c0019 [`openspec/changes/c0019-human-read-layer/evidence.md`](../openspec/changes/c0019-human-read-layer/evidence.md)。
+- 证据：[`docs/diagrams/README.md`](diagrams/README.md)、[`../reports/index.html`](../reports/index.html)、[`../tools/build_index.py`](../tools/build_index.py)、c0019 [`openspec/changes/c0019-human-read-layer/evidence.md`](../openspec/changes/c0019-human-read-layer/evidence.md)。
 - 边界：图依赖 docker 里的 mermaid-cli 渲染，容器没有 CJK 字体，要看真浏览器的截图才能确认标签没被裁；导读页每次合并新 change 都会过期，要重新生成，这一点在构建中出过一次（BUILD_PROCESS 的事故一节）。
 
 ## 诚实的成绩单
