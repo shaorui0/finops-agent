@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0020-visibility-ring1-stable</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0020-visibility-ring1-stable</h1>
+</header>
+<h1 id="c0020-ring-1-稳定化">c0020 ring 1 稳定化</h1>
+<p><strong>改了什么</strong>：ring 1
+只用文字说需要什么信号（<code>signal</code> / <code>concept</code> /
+<code>terms</code> / <code>scope</code>），不写指标名；ring 2
+按含义在在线服务器的指标目录（名字、HELP、scope
+标签）里确定性地发现候选名；ring 4 可按 need 级给出 SLI 的
+covered/partial/missing 混合状态；评估加 <code>--samples N</code>。</p>
+<p><strong>为什么</strong>：c0017 重采样 overlap 为
+0.91、0.82、0.64（均值约 0.79），根因是猜出不存在的指标名，以及合并 SLI
+里一个 need 缺就整个 missing。</p>
+<p><strong>结果</strong>：N=5 overlap 均值 0.964（min 0.91，max
+1.00），评审路径不变。详细证据如下。</p>
+<h1 id="c0020-evidence">c0020 evidence</h1>
+<h2 id="摘要">0 摘要</h2>
+<ul>
+<li>5 次采样 overlap 均值 <strong>0.964</strong>（min 0.91，max
+1.00），目标 mean &gt;= 0.8：<strong>达标</strong>。prompt 只迭代了 1
+轮（v4），第 2 轮没有用。</li>
+<li>对照 c0017（prompt v3，猜正则）：录制 0.91，重采样 0.82 /
+0.64，均值约 0.79。</li>
+<li>LLM 调用共 10 次（5 次 N=5 官方 + 5 次额外 draw 6-10
+做稳定性复核），合计 0.3105 USD（cassette 里的 cost_usd 之和）；预算 15
+次。</li>
+<li>评审路径：<code>visibility.json</code> 的 gaps
+前后逐字节一致；<code>make eval</code> 指标前后一致。</li>
+</ul>
+<p>口径变化要说清：c0017 的 overlap 是「LLM
+写的正则」和评审正则在服务器指标名上有交集；c0020 的 overlap 是「ring 2
+按 terms
+发现的候选名」和评审正则有交集。两者衡量的东西不同（后者包含确定性发现这一步），0.79
+到 0.96 不是同一把尺子上的提升。</p>
+<h2 id="prompt-迭代日志上限-2-轮">1 prompt 迭代日志（上限 2 轮）</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>轮</th>
+<th>改动</th>
+<th>每次采样 overlap（draw 1-5）</th>
+<th>均值</th>
+<th>调用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>v3 到 v4：去掉 <code>name</code>，改为 <code>signal</code> +
+<code>concept</code>（英文短语）+ <code>terms</code>（5-8 个小写单词）+
+<code>scope</code>；<code>(draw #k)</code> 只用来区分 cassette</td>
+<td>0.91 0.91 1.00 1.00 1.00</td>
+<td>0.964</td>
+<td>5</td>
+</tr>
+<tr>
+<td>2</td>
+<td>未做（第 1 轮已达标）</td>
+<td>-</td>
+<td>-</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>稳定性复核（不算 prompt 迭代，同一个 v4 prompt 的 draw 6-10）：0.91
+1.00 0.91 1.00 1.00；N=10 均值 0.964，min 0.91，max 1.00；5 次调用。</p>
+<p>没覆盖的评审 need 全是 <code>.*_client_bytes_total</code>（跨 AZ
+数据传输）。看 draw 1、2 的派生文件：它们没有任何跨 AZ 的 need，G6
+的第二条路径（跨 AZ 归因）被合并或漏掉了，这是 ring 1 本身的漏项，ring 2
+发现帮不上。</p>
+<h2 id="n5-采样replay可复现">2 N=5 采样（replay，可复现）</h2>
+<pre><code>$ python3 -m eval.score_visibility --samples 5
+sample  overlap         precision  cost_usd  missed reviewed needs
+1       10/11 = 0.91   0.86       0.0283    .*_client_bytes_total
+2       10/11 = 0.91   0.93       0.0308    .*_client_bytes_total
+3       11/11 = 1.00   0.83       0.0327    -
+4       11/11 = 1.00   0.88       0.0309    -
+5       11/11 = 1.00   0.78       0.0318    -
+
+overlap over 5 samples: mean 0.964  min 0.91  max 1.00   (target: mean &gt;= 0.80)
+precision mean 0.857
+verdict: MET (mean 0.964)</code></pre>
+<p>replay 跑两次，输出逐字节一致，5 份派生 YAML 与录制时一致。5
+份派生文件在 <code>reports/0020-ring1-samples/</code>。</p>
+<h2 id="缺口表派生ring-2-发现之后对评审测试指标服务器">3
+缺口表：派生（ring 2 发现之后）对评审，测试指标服务器</h2>
+<p>命令：<code>python3 -m eval.score_visibility --samples 5 --prom http://127.0.0.1:36567 --snapshot runs/&lt;run&gt;/snapshot.json</code>（取
+overlap 居中的采样，即 draw 3）。</p>
+<pre><code>rings 2-4 gap table (median sample 3):
+ring-4 status reviewed SLI            derived SLI (status c/p/m needs)                              
+covered       idle_detection          idle_resource_evidence (partial 2/0/1), rightsizing_headroom_slo (partial 2/0/1), tidal_idle_pattern (covered 2/0/0), nat_traffic_attribution (covered 2/0/0), cost_anomaly_early_signal (covered 2/0/0)
+partial       useful_work_ratio       effective_work_ratio (partial 0/2/1), unit_cost_denominator (partial 1/0/1)
+missing       rightsizing_headroom    idle_resource_evidence (partial 2/0/1), rightsizing_headroom_slo (partial 2/0/1), tidal_idle_pattern (covered 2/0/0)
+covered       latency_slo_guard       rightsizing_headroom_slo (partial 2/0/1), tidal_idle_pattern (covered 2/0/0)
+covered       schedule_detection      effective_work_ratio (partial 0/2/1), tidal_idle_pattern (covered 2/0/0)
+missing       unit_cost_per_job       effective_work_ratio (partial 0/2/1), unit_cost_denominator (partial 1/0/1)
+partial       cross_az_attribution    cross_az_traffic_attribution (partial 0/1/0)
+covered       nat_attribution         nat_traffic_attribution (covered 2/0/0), cost_anomaly_early_signal (covered 2/0/0)
+
+derived-only SLIs: (none)
+reviewed ring-4 totals: {&#39;covered&#39;: 4, &#39;partial&#39;: 2, &#39;missing&#39;: 2}
+derived  ring-4 totals: {&#39;covered&#39;: 3, &#39;partial&#39;: 5, &#39;missing&#39;: 0}
+
+ring-2 discovery per derived need (candidate metric names found by meaning):
+  idle_resource_evidence: cpu utilisation percent per instance [running_instances] -&gt; aws_ec2_cpuutilization_average
+  idle_resource_evidence: network bytes transferred per second per instance [running_instances] -&gt; aws_ec2_network_out_bytes_sum
+  idle_resource_evidence: disk io bytes per second per instance [running_instances] -&gt; (no candidate)
+  effective_work_ratio: successful requests or jobs completed per second per service [services:web,api,web-dev,ingest-worker,etl-runner] -&gt; (no candidate)
+  effective_work_ratio: attempted requests or jobs including retries per second per service [services:web,api,web-dev,ingest-worker,etl-runner] -&gt; ingest_job_retries_total, http_requests_total, ingest_jobs_total
+  effective_work_ratio: failed or error responses per second per service [services:web,api,web-dev,ingest-worker,etl-runner] -&gt; ingest_downstream_errors_total
+  rightsizing_headroom_slo: memory utilisation percent per instance [running_instances] -&gt; (no candidate)
+  rightsizing_headroom_slo: cpu utilisation percent per instance [running_instances] -&gt; aws_ec2_cpuutilization_average
+  rightsizing_headroom_slo: request latency distribution in seconds per service [services:web,api] -&gt; http_request_duration_p99_seconds
+  tidal_idle_pattern: incoming requests per second per service over time [services:web,api,web-dev] -&gt; http_requests_total, http_request_duration_p99_seconds
+  tidal_idle_pattern: cpu utilisation percent per instance [running_instances] -&gt; aws_ec2_cpuutilization_average
+  nat_traffic_attribution: bytes processed per NAT gateway [nat_gateways] -&gt; aws_natgateway_bytes_out_to_destination_sum
+  nat_traffic_attribution: network egress bytes per second per instance [running_instances] -&gt; aws_ec2_network_out_bytes_sum
+  cross_az_traffic_attribution: cross availability zone bytes transferred between services [services:web,api,web-dev,ingest-worker,etl-runner] -&gt; db_client_bytes_total
+  unit_cost_denominator: completed ingest jobs count per service [services:ingest-worker] -&gt; ingest_jobs_total, ingest_job_retries_total, ingest_downstream_errors_total
+  unit_cost_denominator: data units or bytes processed per service [services:ingest-worker,etl-runner] -&gt; (no candidate)
+  cost_anomaly_early_signal: bytes processed per second per NAT gateway [nat_gateways] -&gt; aws_natgateway_bytes_out_to_destination_sum
+  cost_anomaly_early_signal: network bytes per second per instance [running_instances] -&gt; aws_ec2_network_out_bytes_sum
+</code></pre>
+<p>读法： 1. 评审版 ring 4：4 covered / 2 partial / 2
+missing。派生版（mix 模式）：3 covered / 5 partial / 0 missing。c0017
+里同样的派生版是 2 covered / 0 partial / 5 missing。合并 SLI 里有一个
+need 没找到，不再让整个 SLI 变 missing。 2. 派生版没有
+missing，不等于比评审版好：partial 里的 need 级 partial（例如
+<code>0/2/1</code>）是指标找到了，但 scope 没覆盖全（service
+列表里有的服务没有这个指标），这是真实的覆盖缺口。 3. 评审版里 planted
+gap 的内存和「处理字节数」，ring 2
+都没有候选（<code>(no candidate)</code>），ring 3 照实记 missing，没有被
+CPU 指标或 <code>db_client_bytes_total</code>
+顶替（泛词规则挡掉了这类误配）。 4. ring 2 的发现不完美：「successful
+requests or jobs completed」没有候选；「completed ingest jobs count」把
+<code>ingest_job_retries_total</code>、<code>ingest_downstream_errors_total</code>
+也带进来了。候选宁多勿漏，之后由 ring 3/4 检查。 5. 评审版
+<code>rightsizing_headroom</code> 在 ring 4 是
+missing，是因为内存本来就没有（planted gap），不是派生版的问题。</p>
+<h2 id="评审路径不变">4 评审路径不变</h2>
+<pre><code>$ # main 上跑 pipeline，取 visibility.json 的 gaps（sort_keys 写出）；本分支同样跑一遍
+$ cmp gaps_before.json gaps_after.json &amp;&amp; echo GAPS_IDENTICAL
+GAPS_IDENTICAL
+
+$ make eval   # main
+{&quot;recall&quot;: 1.0, &quot;savings_recall&quot;: 1.0, &quot;precision&quot;: 1.0, &quot;savings_accuracy&quot;: 0.9167, &quot;step_agreement&quot;: 1.0, &quot;depth&quot;: {&quot;shallow_recall&quot;: 1.0, &quot;deep_recall&quot;: 1.0}, &quot;leads&quot;: 7}
+missed: 
+gates: pass
+$ make eval   # 本分支
+{&quot;recall&quot;: 1.0, &quot;savings_recall&quot;: 1.0, &quot;precision&quot;: 1.0, &quot;savings_accuracy&quot;: 0.9167, &quot;step_agreement&quot;: 1.0, &quot;depth&quot;: {&quot;shallow_recall&quot;: 1.0, &quot;deep_recall&quot;: 1.0}, &quot;leads&quot;: 7}
+missed: 
+gates: pass</code></pre>
+<p><code>ring4</code> 默认 <code>mix=False</code>，评审路径输出不带
+<code>mix</code> 字段；<code>ring2</code> 对带 <code>name</code> 的 need
+不走发现。<code>test_visibility.ReviewedPathUnchangedTest</code>
+固化了这一点。</p>
+<h2 id="测试">5 测试</h2>
+<pre><code>$ python3 -W ignore -m unittest finops_agent.test_visibility finops_agent.test_visibility_llm
+Ran 24 tests ... OK
+$ make test        # 108 tests, OK
+$ make check
+check_rules: OK</code></pre>
+<p>Makefile 不在本 change 范围，<code>make test</code>
+不含两个新测试文件，上面单独跑。</p>
+<h2 id="局限与事故">6 局限与事故</h2>
+<ul>
+<li>均值达标是「ring 1 说词 + 一个确定性
+<code>discover</code>」合起来的结果。<code>discover</code> 的规则（至少
+2 个 term、泛词不能单独撑、scope 标签、3
+个字符以上做子串匹配）是看过测试服务器目录之后定的，换一个命名风格不同的服务器，召回可能下降。这个
+overlap 不能外推到真实环境。</li>
+<li><code>GENERIC</code> 泛词表和子串规则是代码里的词表，不在 prompt
+里，不违反 FA12，但它是调参点。</li>
+<li>precision 0.78 到 0.93（5 次均值 0.857）：LLM 多写的 need
+有些在服务器上没有对应指标（磁盘 IO
+等），属于「我需要但看不到」，不算错。</li>
+<li>评审版只有 11 个 need，漏 1 个就是 0.09，所以 min 0.91 对应漏 1
+个。</li>
+<li>事故：写本文件时 shell 误把 Markdown 里的反引号
+<code>make eval</code> 当命令执行了一次，在默认端口 4566/9090
+起过测试服务器，跑完由 <code>make stop</code>
+关掉，之后确认没有监听残留。其余所有运行都用 36566-36571。</li>
+</ul>
+</body>
+</html>

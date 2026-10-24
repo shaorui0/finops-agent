@@ -1,0 +1,223 @@
+# 第 ① 环，由 LLM 从 config/cost_goals.yaml 推出（未查看任何现有指标）。
+# 由 `python3 -m finops_agent.visibility_llm derive` 生成，格式同 visibility_requirements.yaml。
+slis:
+- id: idle_resource_evidence
+  decision: 判断哪些运行中的机器长期无人使用，从而安全地停止或删除它们
+  goals:
+  - G1
+  need:
+  - signal: 每台实例的CPU利用率
+    concept: cpu utilisation percent per instance
+    terms:
+    - cpu
+    - utilisation
+    - utilization
+    - usage
+    - percent
+    - idle
+    - instance
+    - node
+    scope: running_instances
+  - signal: 每台实例的网络收发字节速率
+    concept: network traffic throughput bytes per second per instance
+    terms:
+    - network
+    - receive
+    - transmit
+    - bytes
+    - throughput
+    - traffic
+    - packets
+    - instance
+    scope: running_instances
+  - signal: 每台实例的磁盘读写吞吐
+    concept: disk io throughput bytes per second per instance
+    terms:
+    - disk
+    - io
+    - read
+    - write
+    - bytes
+    - throughput
+    - iops
+    - instance
+    scope: running_instances
+- id: useful_work_ratio
+  decision: 识别忙但无产出的负载，避免把重试放大的算力和流量误判为正常用量而错误降配或忽视浪费
+  goals:
+  - G2
+  need:
+  - signal: 各服务成功处理的请求或任务速率
+    concept: successful requests or jobs completed per second per service
+    terms:
+    - request
+    - success
+    - successful
+    - completed
+    - jobs
+    - processed
+    - rate
+    - status
+    scope: services:web,api,web-dev,ingest-worker,etl-runner
+  - signal: 各服务尝试的请求或任务速率含重试
+    concept: attempted requests or jobs including retries per second per service
+    terms:
+    - request
+    - attempt
+    - retry
+    - retries
+    - total
+    - errors
+    - failed
+    - jobs
+    scope: services:web,api,web-dev,ingest-worker,etl-runner
+- id: rightsizing_headroom_vs_slo
+  decision: 仅在各资源维度余量已知且不破坏对外服务延迟SLO保护余量时才降配
+  goals:
+  - G3
+  need:
+  - signal: 每台实例的内存利用率
+    concept: memory utilisation percent per instance
+    terms:
+    - memory
+    - utilisation
+    - utilization
+    - available
+    - used
+    - ram
+    - percent
+    - instance
+    scope: running_instances
+  - signal: 每台实例的CPU利用率峰值分布
+    concept: cpu utilisation percent per instance over time for peak analysis
+    terms:
+    - cpu
+    - utilisation
+    - utilization
+    - usage
+    - percent
+    - busy
+    - load
+    - instance
+    scope: running_instances
+  - signal: web和api的请求延迟分布
+    concept: request latency distribution seconds per service
+    terms:
+    - latency
+    - duration
+    - request
+    - histogram
+    - bucket
+    - response
+    - time
+    - quantile
+    scope: services:web,api
+- id: tidal_vs_idle_pattern
+  decision: 区分按时段规律空闲的环境与长期无人使用的环境，仅对后者或有明确空闲时段者做调度或缩容
+  goals:
+  - G4
+  need:
+  - signal: 各服务的请求或工作负载速率随时间变化
+    concept: request or workload rate over time per service
+    terms:
+    - request
+    - requests
+    - rate
+    - workload
+    - traffic
+    - active
+    - sessions
+    - total
+    scope: services:web,api,web-dev,ingest-worker,etl-runner
+  - signal: 每台实例的CPU利用率随时间变化
+    concept: cpu utilisation percent per instance over time
+    terms:
+    - cpu
+    - utilisation
+    - utilization
+    - usage
+    - percent
+    - idle
+    - instance
+    - node
+    scope: running_instances
+- id: shared_cost_attribution
+  decision: 把NAT处理流量和跨可用区传输归因到产生它们的服务，使共享成本有责任方
+  goals:
+  - G6
+  need:
+  - signal: 每个NAT网关处理的字节量
+    concept: bytes processed per NAT gateway
+    terms:
+    - nat
+    - gateway
+    - bytes
+    - processed
+    - out
+    - in
+    - traffic
+    - bandwidth
+    scope: nat_gateways
+  - signal: 每台实例的网络出入字节速率用于归因到工作负载
+    concept: network bytes per second per instance for workload attribution
+    terms:
+    - network
+    - transmit
+    - receive
+    - bytes
+    - traffic
+    - egress
+    - ingress
+    - instance
+    scope: running_instances
+- id: unit_cost_denominator
+  decision: 以真实完成的工作量作为分母计算单位工作成本，判断花费是否值得
+  goals:
+  - G7
+  need:
+  - signal: 摄入任务和处理数据量的完成数
+    concept: completed ingest jobs and data units processed per service
+    terms:
+    - ingest
+    - jobs
+    - completed
+    - processed
+    - records
+    - items
+    - count
+    - bytes
+    scope: services:ingest-worker,etl-runner
+- id: cost_anomaly_early_signal
+  decision: 在账单出来之前用更早的使用量信号触发成本异常巡检
+  goals:
+  - G8
+  need:
+  - signal: NAT网关出口流量速率
+    concept: NAT gateway traffic bytes per second per gateway
+    terms:
+    - nat
+    - gateway
+    - bytes
+    - traffic
+    - out
+    - egress
+    - processed
+    - bandwidth
+    scope: nat_gateways
+  - signal: 每台实例的网络发送字节速率
+    concept: network transmit bytes per second per instance
+    terms:
+    - network
+    - transmit
+    - sent
+    - bytes
+    - egress
+    - traffic
+    - out
+    - instance
+    scope: running_instances
+not_metric_observable:
+- goal: G5
+  reason: Savings Plan利用率与覆盖关系来自AWS账单/Cost Explorer API，不是时序信号
+- goal: G9
+  reason: owner占比与孤儿资源年龄来自资源清单和标签，不是运行时指标
