@@ -17,8 +17,20 @@ With `--docs`, a heading that, after removing backticked spans, has at least 2 A
 ### Requirement: make test runs every test module
 `make test` SHALL run every `test_*.py` under finops_agent, eval, testenv, tools and hooks, and pass with its ports free.
 
+#### Scenario: Full suite
+- **WHEN** `make test` runs on a clean checkout
+- **THEN** finops_agent.test_analyze, test_verify_savings, test_visibility, test_visibility_llm, test_judge_grounding, eval.test_adversarial and eval.test_heldout all run and pass
+
 ### Requirement: Explicit snapshot
 `slo.diff_state` SHALL receive the snapshot as an argument; `slo.py` SHALL hold no module-level snapshot state. Behavior is unchanged.
 
+#### Scenario: No stash
+- **WHEN** `finops_agent.slo` is imported
+- **THEN** it has no `_LAST_SNAP` and `diff_state(..., snap)` marks a still-present unchanged resource `not_redetected`
+
 ### Requirement: not_redetected in the report
 The SLO section of report.html SHALL show the `not_redetected` count and list, with the reason 资源仍在，但本次未再检出.
+
+#### Scenario: Rendered
+- **WHEN** the diff has one not_redetected entry
+- **THEN** report.html shows count 1, the list and the reason
