@@ -34,7 +34,9 @@
 - **为什么 anomaly_time_to_detect 单独算。** 测试账号里 NAT 异常从 09-04 开始，月底才被报出来：27 天。按月看账单的团队，最快也要一个账期才发现。这个 SLI 直接决定了巡检必须是每日的。
 - **为什么 attribution_coverage 在测试账号里只有 25%。** 大部分未归因的花费是共享成本（NAT、跨 AZ、承诺费用），本来就不挂在资源上。这个数字逼出一个决定：共享成本按什么规则分摊。
 
-## Waste budget
+<a id="waste-budget"></a>
+
+## 浪费预算（Waste budget）
 
 错误预算的对应物。每月浪费预算 = SLO 目标 × 花费（测试账号：5% × $8,713 ≈ $436）。当前未处理的浪费是 $1,144，预算用掉 262%。
 
@@ -76,11 +78,15 @@ regressed 是腐烂最直接的信号：修过的东西没有防住复发，说�
 
 SLI 每天才算一次。两次运行之间，原始指标上的规则先报警（`config/alerts/finops.rules.yml` 的 `finops-signals` 组）：
 
-### Busy but useless
+<a id="busy-but-useless"></a>
+
+### 忙但无用（Busy but useless）
 
 `BusyButUselessFleet`：job 有尝试、没有成功，持续 30 分钟。这是成本告警里少有的 page 级别：每多一小时都是纯浪费，而且通常同时是一个可用性事故。
 
-### Path cost
+<a id="path-cost"></a>
+
+### 路径成本（Path cost）
 
 `NatBytesSurge`：NAT 字节超过 7 天均值的两倍。`RetryStorm`：每个 job 重试超过一次。两者一起出现时，先找共同原因再分别算钱。
 
