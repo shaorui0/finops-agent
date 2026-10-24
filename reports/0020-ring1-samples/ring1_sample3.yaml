@@ -1,0 +1,264 @@
+# 第 ① 环，由 LLM 从 config/cost_goals.yaml 推出（未查看任何现有指标）。
+# 由 `python3 -m finops_agent.visibility_llm derive` 生成，格式同 visibility_requirements.yaml。
+slis:
+- id: idle_resource_evidence
+  decision: 判断哪些机器长期无人使用从而可以停止或删除，证据须覆盖所有运行中的机器
+  goals:
+  - G1
+  need:
+  - signal: 实例CPU利用率
+    concept: cpu utilisation percent per instance
+    terms:
+    - cpu
+    - utilization
+    - utilisation
+    - usage
+    - percent
+    - idle
+    - instance
+    - busy
+    scope: running_instances
+  - signal: 实例网络收发流量速率
+    concept: network bytes transferred per second per instance
+    terms:
+    - network
+    - bytes
+    - receive
+    - transmit
+    - traffic
+    - throughput
+    - packets
+    - instance
+    scope: running_instances
+  - signal: 实例磁盘读写速率
+    concept: disk io bytes per second per instance
+    terms:
+    - disk
+    - io
+    - read
+    - write
+    - bytes
+    - throughput
+    - iops
+    - instance
+    scope: running_instances
+- id: effective_work_ratio
+  decision: 识别忙但无产出的负载，避免因重试放大而误判成本正常或错误地扩容
+  goals:
+  - G2
+  need:
+  - signal: 服务成功完成的请求或任务速率
+    concept: successful requests or jobs completed per second per service
+    terms:
+    - success
+    - successful
+    - completed
+    - processed
+    - requests
+    - jobs
+    - ok
+    - rate
+    scope: services:web,api,web-dev,ingest-worker,etl-runner
+  - signal: 服务尝试的请求或任务速率含重试
+    concept: attempted requests or jobs including retries per second per service
+    terms:
+    - attempt
+    - attempts
+    - requests
+    - retry
+    - retries
+    - total
+    - jobs
+    - rate
+    scope: services:web,api,web-dev,ingest-worker,etl-runner
+  - signal: 服务错误响应速率
+    concept: failed or error responses per second per service
+    terms:
+    - error
+    - errors
+    - failed
+    - failure
+    - status
+    - 5xx
+    - requests
+    - rate
+    scope: services:web,api,web-dev,ingest-worker,etl-runner
+- id: rightsizing_headroom_slo
+  decision: 仅在各资源维度余量已知且不破坏对外服务延迟SLO的前提下才降配
+  goals:
+  - G3
+  need:
+  - signal: 实例内存利用率
+    concept: memory utilisation percent per instance
+    terms:
+    - memory
+    - utilization
+    - utilisation
+    - used
+    - available
+    - percent
+    - ram
+    - instance
+    scope: running_instances
+  - signal: 实例CPU利用率
+    concept: cpu utilisation percent per instance
+    terms:
+    - cpu
+    - utilization
+    - utilisation
+    - usage
+    - percent
+    - idle
+    - instance
+    - busy
+    scope: running_instances
+  - signal: 对外服务请求延迟分布
+    concept: request latency distribution in seconds per service
+    terms:
+    - latency
+    - duration
+    - request
+    - response
+    - histogram
+    - bucket
+    - quantile
+    - time
+    scope: services:web,api
+- id: tidal_idle_pattern
+  decision: 区分按时段规律空闲与长期无人使用，只对后者或有明确空闲时段的环境做调度或缩容
+  goals:
+  - G4
+  need:
+  - signal: 服务请求量随时间变化
+    concept: incoming requests per second per service over time
+    terms:
+    - requests
+    - request
+    - rate
+    - traffic
+    - load
+    - http
+    - total
+    - qps
+    scope: services:web,api,web-dev
+  - signal: 实例CPU利用率时间序列
+    concept: cpu utilisation percent per instance
+    terms:
+    - cpu
+    - utilization
+    - utilisation
+    - usage
+    - percent
+    - idle
+    - instance
+    - busy
+    scope: running_instances
+- id: nat_traffic_attribution
+  decision: 把NAT网关处理的流量归因到发出流量的工作负载，决定谁为这笔共享成本负责
+  goals:
+  - G6
+  need:
+  - signal: NAT网关处理的流量字节数
+    concept: bytes processed per NAT gateway
+    terms:
+    - nat
+    - gateway
+    - bytes
+    - processed
+    - out
+    - in
+    - traffic
+    - port
+    scope: nat_gateways
+  - signal: 实例出站网络流量
+    concept: network egress bytes per second per instance
+    terms:
+    - network
+    - transmit
+    - egress
+    - outbound
+    - bytes
+    - sent
+    - traffic
+    - instance
+    scope: running_instances
+- id: cross_az_traffic_attribution
+  decision: 把跨可用区数据传输归因到通信双方的服务
+  goals:
+  - G6
+  need:
+  - signal: 服务间跨可用区流量字节数
+    concept: cross availability zone bytes transferred between services
+    terms:
+    - zone
+    - az
+    - cross
+    - bytes
+    - traffic
+    - service
+    - peer
+    - transfer
+    scope: services:web,api,web-dev,ingest-worker,etl-runner
+- id: unit_cost_denominator
+  decision: 以真实完成的工作量作为分母计算单位工作成本，判断花费是否值得
+  goals:
+  - G7
+  need:
+  - signal: 摄入job完成数
+    concept: completed ingest jobs count per service
+    terms:
+    - ingest
+    - job
+    - jobs
+    - completed
+    - success
+    - processed
+    - count
+    - total
+    scope: services:ingest-worker
+  - signal: 处理的数据量
+    concept: data units or bytes processed per service
+    terms:
+    - processed
+    - records
+    - rows
+    - bytes
+    - data
+    - items
+    - ingested
+    - total
+    scope: services:ingest-worker,etl-runner
+- id: cost_anomaly_early_signal
+  decision: 在账单出来之前通过更早的用量信号触发成本异常巡检
+  goals:
+  - G8
+  need:
+  - signal: NAT网关流量速率
+    concept: bytes processed per second per NAT gateway
+    terms:
+    - nat
+    - gateway
+    - bytes
+    - processed
+    - traffic
+    - out
+    - rate
+    - throughput
+    scope: nat_gateways
+  - signal: 实例网络流量速率
+    concept: network bytes per second per instance
+    terms:
+    - network
+    - bytes
+    - receive
+    - transmit
+    - traffic
+    - throughput
+    - packets
+    - instance
+    scope: running_instances
+not_metric_observable:
+- goal: G5
+  reason: Savings Plan利用率与覆盖关系来自AWS账单和承诺API，不是时序指标
+- goal: G9
+  reason: owner占比和孤儿资源年龄来自资源清单和标签，不是时序指标

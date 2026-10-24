@@ -5,7 +5,8 @@ from pathlib import Path
 
 import yaml
 
-from eval.score_visibility import REVIEWED, PROBES, load, name_overlap, score, scope_overlap, server_metric_names
+from eval.score_visibility import (REVIEWED, PROBES, load, name_overlap, render_samples, score, scope_overlap,
+                                    server_catalog, server_metric_names)
 from finops_agent import visibility
 from finops_agent.llm import LLMClient
 from finops_agent.visibility_llm import ROOT, build_prompt, derive, extract_json, validate
@@ -44,6 +45,15 @@ class PromptHygieneTest(unittest.TestCase):
         for s in load(REVIEWED):
             self.assertNotIn(s["id"], text)
 
+    def test_prompt_asks_for_words_not_names(self):
+        self.assertIn("Do NOT write metric names", self.prompt)
+        self.assertNotIn('"name"', self.prompt)
+
+    def test_draws_have_distinct_prompts_and_draw_one_is_not_the_base(self):
+        a, b = build_prompt(GOALS.read_text(), 1), build_prompt(GOALS.read_text(), 2)
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, self.prompt)
+
     def test_prompt_contains_the_goals(self):
         for g in yaml.safe_load(GOALS.read_text())["goals"]:
             self.assertIn(g["目标"], self.prompt)
@@ -53,18 +63,26 @@ class DeriveTest(unittest.TestCase):
     def test_replay_produces_valid_ring1_usable_by_rings_2_to_4(self):
         with tempfile.TemporaryDirectory() as t:
             out = Path(t) / "r1.yaml"
-            d = derive(GOALS, out, LLMClient("replay"))   # fails with CassetteMissing if the prompt changed without re-recording
+            d = derive(GOALS, out, LLMClient("replay"), sample=1)   # CassetteMissing if the prompt changed without re-recording
             self.assertEqual(d["_call"]["mode"], "replay")
             slis = visibility.ring1(out)
             self.assertEqual(validate({"slis": slis}), [])
-            plan = visibility.ring2(slis, SNAP)
+            self.assertTrue(all("name" not in n for s in slis for n in s["need"]))
+            plan = visibility.ring2(slis, SNAP, server_catalog())   # ring 2 discovers the names
             self.assertEqual(len(plan), sum(len(s["need"]) for s in slis))
+            self.assertTrue(all("discovered" in p for p in plan))
             self.assertTrue(yaml.safe_load(out.read_text())["not_metric_observable"])
 
-    def test_validate_rejects_bad_scope_and_regex(self):
-        bad = {"slis": [{"id": "x", "decision": "d", "need": [{"signal": "s", "name": "a(", "scope": "everything"}]}]}
+    def test_validate_rejects_bad_scope_names_and_terms(self):
+        bad = {"slis": [{"id": "x", "decision": "d", "need": [
+            {"signal": "s", "concept": "c", "name": "aws_ec2_.*", "terms": ["aws_ec2", "cpu"], "scope": "everything"}]}]}
         errs = validate(bad)
-        self.assertTrue(any("bad scope" in e for e in errs) and any("bad regex" in e for e in errs))
+        self.assertTrue(any("bad scope" in e for e in errs))
+        self.assertTrue(any("metric `name`" in e for e in errs))
+        self.assertTrue(any("`terms`" in e for e in errs))
+        ok = {"slis": [{"id": "x", "decision": "d", "need": [
+            {"signal": "s", "concept": "c", "terms": ["cpu", "utilization", "percent"], "scope": "running_instances"}]}]}
+        self.assertEqual(validate(ok), [])
 
     def test_extract_json_handles_fences_and_prose(self):
         self.assertEqual(extract_json('```json\n{"a": 1}\n```'), {"a": 1})
@@ -101,6 +119,25 @@ class ScoreTest(unittest.TestCase):
         kinds = {e["name"]: e["kind"] for e in score(r, d, self.NAMES)["extra"]}
         self.assertIn("no metric", kinds["no_such_metric_total"])
         self.assertIn("real metrics", kinds["up"])
+
+    def test_words_only_need_is_scored_through_discovery(self):
+        r = load(REVIEWED)[:1]    # idle_detection: cpu + network out, per running instance
+        d = [{"id": "x", "decision": "d", "need": [
+            {"signal": "s", "concept": "cpu", "terms": ["cpu", "utilization", "processor"], "scope": "running_instances"},
+            {"signal": "s", "concept": "net", "terms": ["network", "traffic", "bytes", "egress"], "scope": "running_instances"}]}]
+        res = score(r, d, self.NAMES, server_catalog())
+        self.assertEqual(res["recall"], 1.0)
+        wrong_scope = [{**d[0], "need": [{**n, "scope": "nat_gateways"} for n in d[0]["need"]]}]
+        self.assertEqual(score(r, wrong_scope, self.NAMES, server_catalog())["recall"], 0.0)
+
+    def test_render_samples_reports_mean_min_max(self):
+        r = load(REVIEWED)
+        res = score(r, r, self.NAMES)
+        rows = [{"sample": i, "recall": x, "precision": 1.0, "covered": 0, "of": 11, "result": res,
+                 "call": {"cost_usd": 0.01}} for i, x in enumerate((0.9, 0.7), 1)]
+        out = render_samples(rows)
+        self.assertIn("mean 0.800  min 0.70  max 0.90", out)
+        self.assertIn("MET", out)
 
 
 if __name__ == "__main__":

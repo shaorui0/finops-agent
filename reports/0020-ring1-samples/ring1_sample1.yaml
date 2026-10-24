@@ -1,0 +1,203 @@
+# 第 ① 环，由 LLM 从 config/cost_goals.yaml 推出（未查看任何现有指标）。
+# 由 `python3 -m finops_agent.visibility_llm derive` 生成，格式同 visibility_requirements.yaml。
+slis:
+- id: idle_resource_evidence
+  decision: 判断哪些在运行的机器长期无人使用，从而安全地停止或删除以消除已有浪费
+  goals:
+  - G1
+  need:
+  - signal: 实例CPU利用率
+    concept: CPU utilisation percent per instance
+    terms:
+    - cpu
+    - utilization
+    - utilisation
+    - usage
+    - percent
+    - idle
+    - busy
+    scope: running_instances
+  - signal: 实例网络收发流量
+    concept: network traffic rate in bytes per second per instance
+    terms:
+    - network
+    - receive
+    - transmit
+    - bytes
+    - traffic
+    - throughput
+    - packets
+    - octets
+    scope: running_instances
+  - signal: 实例磁盘读写吞吐
+    concept: disk read and write bytes per second per instance
+    terms:
+    - disk
+    - read
+    - write
+    - bytes
+    - io
+    - throughput
+    - iops
+    scope: running_instances
+- id: useful_work_ratio
+  decision: 识别忙但无产出的重试放大和失败工作，避免把白干的负载当作有效利用而误判容量或成本
+  goals:
+  - G2
+  need:
+  - signal: 服务成功处理的请求或任务数
+    concept: count of successful requests or jobs completed per second per service
+    terms:
+    - success
+    - successful
+    - completed
+    - requests
+    - jobs
+    - processed
+    - ok
+    - status
+    scope: services:web,api,ingest-worker,etl-runner
+  - signal: 服务尝试的请求或任务总数含重试
+    concept: count of attempted requests or jobs including retries per second per service
+    terms:
+    - attempts
+    - attempted
+    - requests
+    - retries
+    - retry
+    - total
+    - jobs
+    - errors
+    scope: services:web,api,ingest-worker,etl-runner
+- id: rightsizing_headroom_slo
+  decision: 仅在各资源维度余量已知且不破坏对外服务延迟SLO保护余量时才降配
+  goals:
+  - G3
+  need:
+  - signal: 实例内存利用率
+    concept: memory utilisation percent per instance
+    terms:
+    - memory
+    - available
+    - used
+    - utilization
+    - utilisation
+    - percent
+    - free
+    - bytes
+    scope: running_instances
+  - signal: 实例CPU利用率
+    concept: CPU utilisation percent per instance
+    terms:
+    - cpu
+    - utilization
+    - utilisation
+    - usage
+    - percent
+    - busy
+    - idle
+    scope: running_instances
+  - signal: 对外服务请求延迟分布
+    concept: request latency distribution in seconds per service
+    terms:
+    - latency
+    - duration
+    - request
+    - histogram
+    - bucket
+    - response
+    - quantile
+    - p99
+    scope: services:web,api
+- id: load_shape_peak_trough
+  decision: 根据峰谷分布区分潮汐规律与长期空闲，仅对长期空闲或有明确空闲时段的环境做调度或缩容
+  goals:
+  - G4
+  need:
+  - signal: 服务请求速率随时间变化
+    concept: request rate per second per service over time
+    terms:
+    - request
+    - requests
+    - rate
+    - count
+    - total
+    - http
+    - traffic
+    - qps
+    scope: services:web,api,web-dev
+  - signal: 实例CPU利用率
+    concept: CPU utilisation percent per instance
+    terms:
+    - cpu
+    - utilization
+    - utilisation
+    - usage
+    - percent
+    - busy
+    - idle
+    scope: running_instances
+- id: nat_traffic_attribution
+  decision: 把NAT网关出口流量和跨可用区传输归因到发出流量的服务，使共享成本有责任方
+  goals:
+  - G6
+  - G8
+  need:
+  - signal: NAT网关处理的流出字节数
+    concept: bytes processed outbound per NAT gateway
+    terms:
+    - nat
+    - gateway
+    - bytes
+    - out
+    - processed
+    - egress
+    - sent
+    - traffic
+    scope: nat_gateways
+  - signal: 实例按目的地的网络发送字节数
+    concept: network transmit bytes per second per instance
+    terms:
+    - network
+    - transmit
+    - sent
+    - bytes
+    - egress
+    - instance
+    - traffic
+    - octets
+    scope: running_instances
+- id: unit_cost_denominator
+  decision: 以真实完成的工作量作为分母计算单位成本，判断花费是否值得
+  goals:
+  - G7
+  need:
+  - signal: 摄入job完成数
+    concept: count of completed ingest jobs per service
+    terms:
+    - ingest
+    - job
+    - jobs
+    - completed
+    - processed
+    - success
+    - records
+    - total
+    scope: services:ingest-worker
+  - signal: ETL处理的数据量
+    concept: amount of data processed per ETL run in bytes or records
+    terms:
+    - etl
+    - processed
+    - bytes
+    - records
+    - rows
+    - data
+    - run
+    - completed
+    scope: services:etl-runner
+not_metric_observable:
+- goal: G5
+  reason: Savings Plan利用率和覆盖关系来自AWS账单与承诺API，不是时序指标
+- goal: G9
+  reason: owner占比和孤儿资源年龄来自资源清单与标签，不是运行时指标

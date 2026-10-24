@@ -9,6 +9,10 @@ Matching rule (need level). A reviewed need R is covered by a derived need D whe
          planted gap can still be compared. Full match, like Prometheus. A derived regex that matches more
          than half of the universe is treated as a wildcard and never counts.
 Reported numbers:
+  Since c0020 a derived need states words (`terms`), not a regex. It is resolved to metric names by ring 2's
+  deterministic `visibility.discover` against the same universe (server catalogue incl. HELP text, plus the
+  PROBE names without HELP), then compared with the reviewed need's names exactly as above. A derived need
+  that still carries a `name` regex (c0017 files) is scored the old way.
   recall     reviewed needs covered / reviewed needs                     (the "overlap", target >= 0.8)
   precision  derived needs that cover some reviewed need / derived needs
   name-only  recall with the scope condition dropped (how much is lost to scope vocabulary alone)
@@ -17,6 +21,7 @@ There is deliberately no semantic "same decision class" fallback: it needs a jud
 the score depend on a second model.
 
     python3 -m eval.score_visibility --derived runs/ring1_llm.yaml [--prom http://127.0.0.1:33566]
+    python3 -m eval.score_visibility --samples 5 [--outdir DIR]   # derive N times, report mean/min/max overlap
 """
 from __future__ import annotations
 
@@ -49,6 +54,28 @@ def server_metric_names(prom: str | None = None) -> set[str]:
     return {s.labels["__name__"] if "__name__" in s.labels else s.name for s in metrics_server.build()[1]}
 
 
+def server_catalog(prom: str | None = None) -> dict[str, dict]:
+    """Metric catalogue (name -> help, type, labels) of the test metrics server, over HTTP or in-process."""
+    if prom:
+        from finops_agent.collect import Collector, Config, Trace
+        from finops_agent import visibility
+        return visibility.fetch_catalog(Collector(Config(aws_endpoint=None, prom_url=prom), Trace()))
+    from testenv import metrics_server
+    cat = {n: {"help": h, "type": t, "labels": set()} for n, (t, h) in metrics_server.METADATA.items()}
+    for x in metrics_server.build()[1]:
+        cat.setdefault(x.labels["__name__"], {"help": "", "type": "", "labels": set()})["labels"].update(
+            k for k in x.labels if k != "__name__")
+    return cat
+
+
+def universe_catalog(catalog: dict[str, dict]) -> dict[str, dict]:
+    """Server catalogue plus the probe names (no HELP, no labels), so planted gaps can be compared."""
+    out = dict(catalog)
+    for p in PROBES:
+        out.setdefault(p, {"help": "", "type": "", "labels": set()})
+    return out
+
+
 def parse_scope(scope: str) -> tuple[str, frozenset]:
     if scope.startswith("services:"):
         return "services", frozenset(scope.split(":", 1)[1].split(","))
@@ -75,17 +102,30 @@ def name_overlap(reviewed: str, derived: str, universe: set[str]) -> bool:
     return bool(matches(reviewed, universe) & d)
 
 
-def score(reviewed: list[dict], derived: list[dict], names: set[str]) -> dict:
+def need_names(need: dict, universe: set[str], catalog: dict[str, dict]) -> set[str]:
+    """Metric names a need stands for in the universe: its regex, or ring-2 discovery for a words-only need."""
+    if "name" in need:
+        d = matches(need["name"], universe)
+    else:
+        from finops_agent import visibility
+        label = visibility.SCOPE_LABEL.get(need["scope"], "job" if need["scope"].startswith("services:") else "")
+        d = {c["name"] for c in visibility.discover(need, label, catalog)}
+    return set() if len(d) > WILDCARD_SHARE * len(universe) else d
+
+
+def score(reviewed: list[dict], derived: list[dict], names: set[str], catalog: dict | None = None) -> dict:
     universe = set(names) | set(PROBES)
+    catalog = universe_catalog(catalog if catalog is not None else {n: {"help": "", "type": "", "labels": set()} for n in names})
     dneeds = [(s["id"], n) for s in derived for n in s["need"]]
+    dres = [need_names(d, universe, catalog) for _, d in dneeds]
     rows, total, hit, hit_name = [], 0, 0, 0
     used = set()
     for s in reviewed:
         cov = []
         for n in s["need"]:
             by = [(sid, i) for i, (sid, d) in enumerate(dneeds)
-                  if scope_overlap(n["scope"], d["scope"]) and name_overlap(n["name"], d["name"], universe)]
-            by_name = [1 for sid, d in dneeds if name_overlap(n["name"], d["name"], universe)]
+                  if scope_overlap(n["scope"], d["scope"]) and matches(n["name"], universe) & dres[i]]
+            by_name = [1 for i, (sid, d) in enumerate(dneeds) if matches(n["name"], universe) & dres[i]]
             used.update(i for _, i in by)
             cov.append({"signal": n["signal"], "name": n["name"], "scope": n["scope"], "covered": bool(by),
                         "by": sorted({sid for sid, _ in by}), "name_only": bool(by_name)})
@@ -99,8 +139,8 @@ def score(reviewed: list[dict], derived: list[dict], names: set[str]) -> dict:
     for i, (sid, d) in enumerate(dneeds):
         if i in used:
             continue
-        real = matches(d["name"], set(names))
-        extra.append({"sli": sid, "name": d["name"], "scope": d["scope"], "real_metrics": sorted(real),
+        real = dres[i] & set(names)
+        extra.append({"sli": sid, "name": d.get("name") or d.get("concept", "?"), "scope": d["scope"], "real_metrics": sorted(real),
                       "kind": "matches real metrics, not in reviewed" if real else "matches no metric on the server"})
     return {"recall": hit / total if total else 0.0, "recall_name_only": hit_name / total if total else 0.0,
             "precision": len(used) / len(dneeds) if dneeds else 0.0,
@@ -126,32 +166,43 @@ def render(res: dict) -> str:
     return "\n".join(out)
 
 
-def run_rings(slis: list[dict], snap: dict, prom: str) -> dict:
-    """Rings 2-4 (finops_agent.visibility) for one ring-1 list against the live test metrics server."""
+def run_rings(slis: list[dict], snap: dict, prom: str, mix: bool = False) -> dict:
+    """Rings 2-4 (finops_agent.visibility) for one ring-1 list against the live test metrics server.
+    Needs without a `name` are discovered in ring 2 from the server's catalogue."""
     from finops_agent import visibility
     from finops_agent.collect import Collector, Config, Trace
     col = Collector(Config(aws_endpoint=None, prom_url=prom), Trace())
-    plan = visibility.ring2(slis, snap)
-    return {g["sli"]: g for g in visibility.ring4(slis, plan, visibility.ring3(plan, col))}
+    catalog = visibility.fetch_catalog(col) if any("name" not in n for s in slis for n in s["need"]) else None
+    plan = visibility.ring2(slis, snap, catalog)
+    return {g["sli"]: {**g, "plan": [p for p in plan if p["sli"] == g["sli"]]}
+            for g in visibility.ring4(slis, plan, visibility.ring3(plan, col), mix=mix)}
 
 
 def gap_table(reviewed: list[dict], derived: list[dict], snap: dict, prom: str) -> str:
-    """Gap table of the reviewed ring 1 next to the derived one. Derived SLIs are shown under the reviewed SLI
-    that shares a need with them (strict rule above); the rest are listed as derived-only."""
-    rg, dg = run_rings(reviewed, snap, prom), run_rings(derived, snap, prom)
-    names = server_metric_names(prom) | set(PROBES)
-    out = [f"{'ring-4 status':<14}{'reviewed SLI':<24}{'derived SLI (status)':<62}"]
+    """Gap table of the reviewed ring 1 next to the derived one (derived after ring-2 discovery, ring-4 need-level mix).
+    Derived SLIs are shown under the reviewed SLI that shares a need with them (strict rule above); the rest are
+    listed as derived-only. A derived SLI shows its status and its mix as covered/partial/missing needs."""
+    rg, dg = run_rings(reviewed, snap, prom), run_rings(derived, snap, prom, mix=True)
+    cat = universe_catalog(server_catalog(prom))
+    names = set(cat)
+    resolved = {d["id"]: [(m, need_names(m, names, cat)) for m in d["need"]] for d in derived}
+    fmt = lambda d: f"{d} ({dg[d]['status']} {dg[d]['mix']['covered']}/{dg[d]['mix']['partial']}/{dg[d]['mix']['missing']})"
+    out = [f"{'ring-4 status':<14}{'reviewed SLI':<24}{'derived SLI (status c/p/m needs)':<62}"]
     claimed = set()
     for s in reviewed:
-        ds = [d["id"] for d in derived if any(scope_overlap(n["scope"], m["scope"]) and name_overlap(n["name"], m["name"], names)
-                                              for n in s["need"] for m in d["need"])]
+        ds = [d["id"] for d in derived if any(scope_overlap(n["scope"], m["scope"]) and matches(n["name"], names) & r
+                                              for n in s["need"] for m, r in resolved[d["id"]])]
         claimed.update(ds)
-        cell = ", ".join(f"{d} ({dg[d]['status']})" for d in ds) or "-"
-        out.append(f"{rg[s['id']]['status']:<14}{s['id']:<24}{cell}")
+        out.append(f"{rg[s['id']]['status']:<14}{s['id']:<24}{', '.join(fmt(d) for d in ds) or '-'}")
     only = [d["id"] for d in derived if d["id"] not in claimed]
-    out += ["", "derived-only SLIs: " + (", ".join(f"{d} ({dg[d]['status']})" for d in only) or "(none)")]
+    out += ["", "derived-only SLIs: " + (", ".join(fmt(d) for d in only) or "(none)")]
     cnt = lambda g: {k: sum(v["status"] == k for v in g.values()) for k in ("covered", "partial", "missing")}
-    out += [f"reviewed ring-4 totals: {cnt(rg)}", f"derived  ring-4 totals: {cnt(dg)}"]
+    out += [f"reviewed ring-4 totals: {cnt(rg)}", f"derived  ring-4 totals: {cnt(dg)}", "",
+            "ring-2 discovery per derived need (candidate metric names found by meaning):"]
+    for d in derived:
+        for n, p in zip(d["need"], dg[d["id"]]["plan"]):
+            out.append(f"  {d['id']}: {n['concept']} [{n['scope']}] -> "
+                       + (", ".join(c["name"] for c in p["discovered"]) or "(no candidate)"))
     return "\n".join(out)
 
 
@@ -159,19 +210,64 @@ def load(path) -> list[dict]:
     return yaml.safe_load(Path(path).read_text())["slis"]
 
 
+def samples(n: int, goals: Path, outdir: Path, reviewed: list[dict], names: set[str], catalog: dict) -> list[dict]:
+    """Derive ring 1 n times (draws 1..n; record mode makes n real LLM calls) and score each draw."""
+    from finops_agent.visibility_llm import derive
+    outdir.mkdir(parents=True, exist_ok=True)
+    out = []
+    for k in range(1, n + 1):
+        path = outdir / f"ring1_sample{k}.yaml"
+        d = derive(goals, path, sample=k)
+        r = score(reviewed, load(path), names, catalog)
+        out.append({"sample": k, "path": str(path), "recall": r["recall"], "precision": r["precision"],
+                    "covered": r["covered_needs"], "of": r["reviewed_needs"], "result": r, "call": d["_call"]})
+    return out
+
+
+def render_samples(res: list[dict]) -> str:
+    rec = [r["recall"] for r in res]
+    mean = sum(rec) / len(rec)
+    out = [f"{'sample':<8}{'overlap':<16}{'precision':<11}{'cost_usd':<10}missed reviewed needs"]
+    for r in res:
+        miss = [n["name"] for row in r["result"]["rows"] for n in row["needs"] if not n["covered"]]
+        out.append(f"{r['sample']:<8}{r['covered']}/{r['of']} = {r['recall']:<7.2f}{r['precision']:<11.2f}"
+                   f"{r['call']['cost_usd']:<10.4f}{', '.join(miss) or '-'}")
+    out += ["", f"overlap over {len(res)} samples: mean {mean:.3f}  min {min(rec):.2f}  max {max(rec):.2f}   (target: mean >= 0.80)",
+            f"precision mean {sum(r['precision'] for r in res) / len(res):.3f}",
+            f"verdict: {'MET' if mean >= 0.8 else 'NOT MET'} (mean {mean:.3f})"]
+    return "\n".join(out)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="eval.score_visibility")
-    ap.add_argument("--derived", required=True)
+    ap.add_argument("--derived", help="derived ring-1 yaml (single-file mode)")
+    ap.add_argument("--samples", type=int, default=0, help="derive ring 1 N times and report mean/min/max overlap")
+    ap.add_argument("--goals", default=str(ROOT / "config" / "cost_goals.yaml"))
+    ap.add_argument("--outdir", default=str(ROOT / "runs" / "ring1_samples"))
     ap.add_argument("--reviewed", default=str(REVIEWED))
     ap.add_argument("--prom", default=None, help="metrics server URL; default: in-process testenv")
     ap.add_argument("--snapshot", default=None, help="snapshot.json from a run; with --prom, also run rings 2-4")
     ap.add_argument("--json", default=None, help="also write the full result here")
     a = ap.parse_args(argv)
-    res = score(load(a.reviewed), load(a.derived), server_metric_names(a.prom))
+    if not a.derived and not a.samples:
+        ap.error("give --derived FILE or --samples N")
+    names, catalog = server_metric_names(a.prom), server_catalog(a.prom)
+    reviewed = load(a.reviewed)
+    if a.samples:
+        res = samples(a.samples, Path(a.goals), Path(a.outdir), reviewed, names, catalog)
+        print(render_samples(res))
+        if a.snapshot and a.prom:
+            med = sorted(res, key=lambda r: r["recall"])[len(res) // 2]
+            print(f"\nrings 2-4 gap table (median sample {med['sample']}):")
+            print(gap_table(reviewed, load(med["path"]), json.loads(Path(a.snapshot).read_text()), a.prom))
+        if a.json:
+            Path(a.json).write_text(json.dumps([{k: v for k, v in r.items() if k != "result"} for r in res], indent=2))
+        return 0
+    res = score(reviewed, load(a.derived), names, catalog)
     print(render(res))
     if a.snapshot and a.prom:
         print("\nrings 2-4 gap table:")
-        print(gap_table(load(a.reviewed), load(a.derived), json.loads(Path(a.snapshot).read_text()), a.prom))
+        print(gap_table(reviewed, load(a.derived), json.loads(Path(a.snapshot).read_text()), a.prom))
     if a.json:
         Path(a.json).write_text(json.dumps(res, indent=2, ensure_ascii=False))
     return 0
