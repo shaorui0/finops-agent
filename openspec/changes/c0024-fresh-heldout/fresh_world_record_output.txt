@@ -1,0 +1,11 @@
+run fresh_world: 13 findings, 8 leads, invariants pass
+/var/folders/88/jxwy9d9557g1jxg0jwsf2xvw0000gn/T/tmp1rym1qp3/fresh_world/report.html
+| world | kind | recall | savings_recall | precision | savings_accuracy | savings_accuracy_day_scaled | step_agreement | traps | invariants | findings/GT | LLM calls | cost |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| fresh_world | preregistered | 0.75 | 0.568 | 1.0 | 0.5385 | 0.5385 | 1.0 | 1 | 0 | 13/12 | 8 | $0.1507 |
+
+[fresh_world] missed: [('GT02', '~24 TB/month of steady S3 reads go through the NAT gateway; no S3 gateway endpoint exists'), ('GT03', 'pricing-api (eu-west-1c/1b) and ledger-db (eu-west-1a) exchange ~21.5 TB/month across AZs'), ('GT07', 'storefront-6 is tagged team-storefront but is a pricing-api node')]; depth={'shallow_recall': 1.0, 'deep_recall': 0.6667}
+[fresh_world] judged: L01:unattributed_transfer=insufficient_evidence; L02:fleet_work=not_waste; L03:fleet_work=waste; L04:cost_growth=insufficient_evidence; L05:cost_growth=insufficient_evidence; L06:idle_window=waste; L07:idle_window=waste; L08:idle_window=not_waste
+[fresh_world] missed savings share: {'GT02': 0.3131, 'GT03': 0.1189, 'GT07': 0.0}; savings outside the GT range: [{'gt': 'GT06', 'finding': 'F01', 'savings': 96.0, 'range': {'min': 129, 'max': 143}}, {'gt': 'GT06', 'finding': 'F02', 'savings': 40.0, 'range': {'min': 129, 'max': 143}}, {'gt': 'GT06', 'finding': 'F03', 'savings': 48.0, 'range': {'min': 129, 'max': 143}}, {'gt': 'GT09', 'finding': 'F09', 'savings': 16.0, 'range': {'min': 30, 'max': 34}}, {'gt': 'GT12', 'finding': 'F04', 'savings': 3.6, 'range': {'min': 6.8, 'max': 7.6}}, {'gt': 'GT12', 'finding': 'F05', 'savings': 3.6, 'range': {'min': 6.8, 'max': 7.6}}]
+[fresh_world] trap violations: [{'trap': 'TR05', 'resource': 'vol-0f0audit00000c003', 'finding': 'F03', 'why': 'unattached_volume'}]
+FINOPS_LLM_MODE=record FINOPS_HELDOUT_PORTS=41566-41599 python3 -m  --only     6.06s user 1.41s system 38% cpu 19.309 total

@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Run the full agent on a world and score it; report in-sample and held-out results separately.
 
-  python3 -m eval.heldout                       # base world (in-sample) + next_month + month_after (held-out)
+  python3 -m eval.heldout                       # base world (in-sample) + next_month + month_after (held-out, contaminated by c0023) + fresh_world (preregistered)
   python3 -m eval.heldout --json out.json       # also write every number as JSON
   FINOPS_LLM_MODE=record python3 -m eval.heldout   # record the cassettes the held-out worlds need (the only live LLM use)
 
 In-sample = testenv/world.yaml. The judge prompt's rubric was iterated against exactly this account (c0009), so its
 numbers are an upper bound. Held-out = the two scenario overlays next_month and month_after: same agent, same prompt, a
 different month of the same synthetic account. The prompt is never edited in response to held-out numbers.
+
+Preregistered = testenv/heldout/fresh_world.yaml (c0024): a full, different world whose ground truth, command and decision rule
+were committed before the agent or judge ever ran on it (openspec/changes/c0024-fresh-heldout/prereg.md). Its ground truth is
+the `ground_truth` block of its own file; it is measured once and no agent code changes in response.
 
 Held-out ground truth is derived from each scenario's own `scenario.expect` (resolved / new / regressed, with the `gt`
 ids in `details`) applied to the base ground truth entries; nothing is read to tune the agent.
@@ -157,7 +161,18 @@ def evaluate(result: dict, gt: dict, days: int = 30) -> dict:
     return s
 
 
-WORLDS = [("base (in-sample)", None, "in-sample"), ("next_month", SCEN / "next_month.yaml", "held-out"), ("month_after", SCEN / "month_after.yaml", "held-out")]
+FRESH = ROOT / "testenv" / "heldout" / "fresh_world.yaml"
+WORLDS = [("base (in-sample)", None, "in-sample"), ("next_month", SCEN / "next_month.yaml", "held-out"), ("month_after", SCEN / "month_after.yaml", "held-out"),
+          ("fresh_world", FRESH, "preregistered")]
+
+
+def world_ground_truth(name: str, path) -> dict:
+    """Base world: its own block; fresh world: its own block; scenario overlays: derived from `scenario.expect`."""
+    if path is None:
+        return base_ground_truth()
+    if path == FRESH:
+        return yaml.safe_load(path.read_text())["ground_truth"]
+    return expected_ground_truth(path)
 
 
 def run_all(only=None) -> dict:
@@ -166,7 +181,7 @@ def run_all(only=None) -> dict:
         if only and name not in only:
             continue
         result = run_world(path, run_id=name.split()[0])
-        gt = base_ground_truth() if path is None else expected_ground_truth(path)
+        gt = world_ground_truth(name, path)
         days = (date.fromisoformat(result["period"]["End"]) - date.fromisoformat(result["period"]["Start"])).days
         out[name] = {"kind": kind, "days": days, **evaluate(result, gt, days), "findings": [(f["type"], f["method_step"], f["resources"]) for f in result["findings"]]}
     return out
