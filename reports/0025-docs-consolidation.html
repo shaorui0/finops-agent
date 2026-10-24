@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0025-docs-consolidation</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0025-docs-consolidation</h1>
+</header>
+<h1 id="c0025-docs-consolidation文档合并">c0025
+docs-consolidation：文档合并</h1>
+<h2 id="改了什么">改了什么</h2>
+<ul>
+<li>新增
+NARRATIVE（十二项能力声明，各带证据与边界，加诚实的成绩单）、MATURITY（D1
+到 D20）、BUILD_PROCESS（闭环、调度、事故）。</li>
+<li>README：进度表补 c0009 到
+c0025；结果改成三层表；嵌入六张图中的五张；入口链接；设计表更新。</li>
+<li>ARCHITECTURE：删「进行中」，补判断层、LLM
+录制回放、处置、五段式、预防、核实、可见性第 ②
+环发现、五种腐烂状态。</li>
+<li>REQUIREMENTS §5：每行写明交付它的
+change，只保留两个依赖维护者的例外。</li>
+<li>EXPERIMENTS：对抗一节改为 c0022 之后的事实，顶部加摘要与目录。</li>
+<li>导读页重新生成。</li>
+</ul>
+<h2 id="为什么">为什么</h2>
+<p>24 个 change 之后文档落后于代码，读者看到的是旧状态。</p>
+<h2 id="验收">验收</h2>
+<p>见
+<code>openspec/changes/c0025-docs-consolidation/evidence.md</code>：链接与标题检查、覆盖面矩阵扫描、嵌图检查、<code>make test</code>、<code>make check</code>。</p>
+<h2 id="三层结果取自-experiments-7.3">三层结果（取自 EXPERIMENTS
+§7.3）</h2>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>recall</th>
+<th>按金额加权 recall</th>
+<th>深层 recall</th>
+<th>陷阱违规</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>样本内</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>样本外（已污染）</td>
+<td>1.0 / 1.0</td>
+<td>1.0 / 1.0</td>
+<td>1.0 / 1.0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>预注册新世界</td>
+<td>0.75</td>
+<td>0.568</td>
+<td>0.667</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
