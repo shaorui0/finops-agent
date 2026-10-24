@@ -1,0 +1,317 @@
+{
+  "fresh_world": {
+    "kind": "preregistered",
+    "days": 30,
+    "recall": 0.75,
+    "savings_recall": 0.568,
+    "precision": 1.0,
+    "savings_accuracy": 0.5385,
+    "step_agreement": 1.0,
+    "trap_violations": [
+      {
+        "trap": "TR05",
+        "resource": "vol-0f0audit00000c003",
+        "finding": "F03",
+        "why": "unattached_volume"
+      }
+    ],
+    "invariants": [],
+    "depth": {
+      "shallow_recall": 1.0,
+      "deep_recall": 0.6667
+    },
+    "matched": {
+      "GT01": [
+        "F11"
+      ],
+      "GT02": [],
+      "GT03": [],
+      "GT04": [
+        "F10"
+      ],
+      "GT05": [
+        "F06"
+      ],
+      "GT06": [
+        "F01",
+        "F02",
+        "F03"
+      ],
+      "GT07": [],
+      "GT08": [
+        "F07"
+      ],
+      "GT09": [
+        "F08",
+        "F09"
+      ],
+      "GT10": [
+        "F12"
+      ],
+      "GT11": [
+        "F13"
+      ],
+      "GT12": [
+        "F04",
+        "F05"
+      ]
+    },
+    "missed": [
+      {
+        "id": "GT02",
+        "title": "~24 TB/month of steady S3 reads go through the NAT gateway; no S3 gateway endpoint exists",
+        "method_step": "M6_architecture",
+        "hops": 3
+      },
+      {
+        "id": "GT03",
+        "title": "pricing-api (eu-west-1c/1b) and ledger-db (eu-west-1a) exchange ~21.5 TB/month across AZs",
+        "method_step": "M6_architecture",
+        "hops": 3
+      },
+      {
+        "id": "GT07",
+        "title": "storefront-6 is tagged team-storefront but is a pricing-api node",
+        "method_step": "M1_visibility_attribution",
+        "hops": 4
+      }
+    ],
+    "leads": 8,
+    "savings_accuracy_day_scaled": 0.5385,
+    "judged": [
+      {
+        "lead": "L01",
+        "kind": "unattributed_transfer",
+        "verdict": "insufficient_evidence",
+        "accepted": true,
+        "reject_reason": null
+      },
+      {
+        "lead": "L02",
+        "kind": "fleet_work",
+        "verdict": "not_waste",
+        "accepted": true,
+        "reject_reason": null
+      },
+      {
+        "lead": "L03",
+        "kind": "fleet_work",
+        "verdict": "waste",
+        "accepted": true,
+        "reject_reason": null
+      },
+      {
+        "lead": "L04",
+        "kind": "cost_growth",
+        "verdict": "insufficient_evidence",
+        "accepted": true,
+        "reject_reason": null
+      },
+      {
+        "lead": "L05",
+        "kind": "cost_growth",
+        "verdict": "insufficient_evidence",
+        "accepted": true,
+        "reject_reason": null
+      },
+      {
+        "lead": "L06",
+        "kind": "idle_window",
+        "verdict": "waste",
+        "accepted": true,
+        "reject_reason": null
+      },
+      {
+        "lead": "L07",
+        "kind": "idle_window",
+        "verdict": "waste",
+        "accepted": true,
+        "reject_reason": null
+      },
+      {
+        "lead": "L08",
+        "kind": "idle_window",
+        "verdict": "not_waste",
+        "accepted": true,
+        "reject_reason": null
+      }
+    ],
+    "llm": {
+      "calls": 8,
+      "tokens_in": 24524,
+      "tokens_out": 5265,
+      "cost_usd": 0.1507
+    },
+    "missed_savings_share": {
+      "GT02": 0.3131,
+      "GT03": 0.1189,
+      "GT07": 0.0
+    },
+    "savings_out_of_range": [
+      {
+        "gt": "GT06",
+        "finding": "F01",
+        "savings": 96.0,
+        "range": {
+          "min": 129,
+          "max": 143
+        }
+      },
+      {
+        "gt": "GT06",
+        "finding": "F02",
+        "savings": 40.0,
+        "range": {
+          "min": 129,
+          "max": 143
+        }
+      },
+      {
+        "gt": "GT06",
+        "finding": "F03",
+        "savings": 48.0,
+        "range": {
+          "min": 129,
+          "max": 143
+        }
+      },
+      {
+        "gt": "GT09",
+        "finding": "F09",
+        "savings": 16.0,
+        "range": {
+          "min": 30,
+          "max": 34
+        }
+      },
+      {
+        "gt": "GT12",
+        "finding": "F04",
+        "savings": 3.6,
+        "range": {
+          "min": 6.8,
+          "max": 7.6
+        }
+      },
+      {
+        "gt": "GT12",
+        "finding": "F05",
+        "savings": 3.6,
+        "range": {
+          "min": 6.8,
+          "max": 7.6
+        }
+      }
+    ],
+    "findings_n": 13,
+    "gt_n": 12,
+    "gate_failures": [
+      "trap violations: [{'trap': 'TR05', 'resource': 'vol-0f0audit00000c003', 'finding': 'F03', 'why': 'unattached_volume'}]"
+    ],
+    "findings": [
+      [
+        "unattached_volume",
+        "M3_delete",
+        [
+          "vol-0f0dwh0000000c001"
+        ]
+      ],
+      [
+        "unattached_volume",
+        "M3_delete",
+        [
+          "vol-0f0scratch00000c002"
+        ]
+      ],
+      [
+        "unattached_volume",
+        "M3_delete",
+        [
+          "vol-0f0audit00000c003"
+        ]
+      ],
+      [
+        "idle_public_ip",
+        "M3_delete",
+        [
+          "eipalloc-0bb0000000000001"
+        ]
+      ],
+      [
+        "idle_public_ip",
+        "M3_delete",
+        [
+          "eipalloc-0bb0000000000002"
+        ]
+      ],
+      [
+        "stopped_instance_storage",
+        "M3_delete",
+        [
+          "i-0f1e2d3c4b5a60801",
+          "vol-0f0recon00000b001",
+          "vol-0f0recon00000b002"
+        ]
+      ],
+      [
+        "orphan_snapshots",
+        "M3_delete",
+        [
+          "vol-0f0gone00000d001",
+          "ami-ingest-v2",
+          "ami-ingest-v3",
+          "ami-web-v10",
+          "ami-web-v8",
+          "ami-web-v9"
+        ]
+      ],
+      [
+        "gp2_to_gp3",
+        "M4_downsize_schedule",
+        [
+          "vol-0f0ledger00000a001"
+        ]
+      ],
+      [
+        "gp2_to_gp3",
+        "M4_downsize_schedule",
+        [
+          "vol-0f0recon00000b002"
+        ]
+      ],
+      [
+        "savings_plan_underutilized",
+        "M5_commitment",
+        [
+          "sp-ec2-m6i-01"
+        ]
+      ],
+      [
+        "busy_but_useless",
+        "M3_delete",
+        [
+          "carrier-sync-asg",
+          "i-0f1e2d3c4b5a60401",
+          "i-0f1e2d3c4b5a60402",
+          "i-0f1e2d3c4b5a60403",
+          "i-0f1e2d3c4b5a60404"
+        ]
+      ],
+      [
+        "always_on_batch",
+        "M6_architecture",
+        [
+          "i-0f1e2d3c4b5a60501"
+        ]
+      ],
+      [
+        "schedulable_idle",
+        "M4_downsize_schedule",
+        [
+          "i-0f1e2d3c4b5a60601",
+          "i-0f1e2d3c4b5a60602"
+        ]
+      ]
+    ]
+  }
+}
