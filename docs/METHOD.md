@@ -2,6 +2,8 @@
 
 这是维护者做成本优化的方法，也是 agent 的作业顺序。每条 finding 都要标明它是在哪一步被发现的（`method_step`），报告按这个顺序组织，读者能看到判断是怎么一步步得出的，而不只是一个金额。
 
+![方法 M0 到 M6](diagrams/method.svg)
+
 ## 两个层级
 
 **运营级**动的是账单公式里的单价：清理、降配、换存储类、买承诺。天花板是折扣率。
@@ -36,3 +38,5 @@
 ## 和合成测试账号的对应
 
 `testenv/world.yaml` 里的每条 ground-truth finding 都标了 `method_step`。浅的（未挂载的卷、空闲的 IP）一跳就能看到；深的要跨三到四个数据源才能成立，并且混进了几个看起来像浪费、实际不是的陷阱。
+
+相关：[`FINOPS_SLO.md`](FINOPS_SLO.md)（清理之后怎么办）、[`SAVINGS_VERIFICATION.md`](SAVINGS_VERIFICATION.md)（节省是否真的兑现）、[`NARRATIVE.md`](NARRATIVE.md)。

@@ -1,6 +1,6 @@
 # 贡献指南
 
-这个仓库是一个只读的 FinOps 巡检 agent，加一套能离线跑的合成 AWS 账号和打分器。改动前先读 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)（模块地图和产物契约）和 [`docs/METHOD.md`](docs/METHOD.md)（M0 到 M6 的方法）。
+这个仓库是一个只读的 FinOps 巡检 agent，加一套能离线跑的合成 AWS 账号和打分器。改动前先读 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)（模块地图和产物契约）和 [`docs/METHOD.md`](docs/METHOD.md)（M0 到 M6 的方法）。想先了解整体：[`docs/NARRATIVE.md`](docs/NARRATIVE.md)（这个项目证明了什么）、[`docs/MATURITY.md`](docs/MATURITY.md)（完成标准）、[`docs/BUILD_PROCESS.md`](docs/BUILD_PROCESS.md)（构建过程）、[`reports/index.html`](reports/index.html)（导读页）。
 
 ## 搭环境
 
@@ -18,10 +18,16 @@
 | `make eval` | 起两个测试服务，跑一遍 agent，用 `eval/score.py` 对照标准答案打分，结束后关服务。陷阱或不变量违反、指标低于基线时退出码为 1 |
 | `make alerts-test` | 用 promtool 校验并单测 `config/alerts/` 下的告警规则 |
 | `make demo` | 只起服务并跑一遍，产物在 `runs/local/`，不打分 |
+| `make rot-demo` | 三个周期（基础、下个月、再下个月）演示 resolved、regressed、new，不开判断层 |
+| `python3 -m eval.heldout` | 样本内、样本外（已污染）、预注册新世界的指标并排，回放约 10 秒 |
+| `bash scripts/verify_savings.sh` | 省钱核实，重新生成 `docs/SAVINGS_VERIFICATION.md` |
+| `python3 tools/build_index.py` | 重新生成导读页 `reports/index.html` |
 
 端口冲突时用 `AWS_PORT`、`PROM_PORT`、`RUN` 覆盖，例如 `make eval AWS_PORT=14566 PROM_PORT=19090 RUN=ci`。`runs/` 已被 `.gitignore` 忽略。
 
 ## 改动闭环
+
+![Harness 分层](docs/diagrams/harness-layers.svg)
 
 每个改动是一个 OpenSpec change，按阶段提交。完整规则在 [`.claude/skills/finops-change-loop/SKILL.md`](.claude/skills/finops-change-loop/SKILL.md)，摘要如下。
 
@@ -64,6 +70,15 @@
 6. 需要新的 AWS 或 Prometheus 数据时，改 `finops_agent/collect.py` 的 `snapshot()`，只用只读 API（`describe_*`、`get_*`、`list_*`）。`test_trace_is_read_only` 会拦写操作。
 7. 测试：在 `finops_agent/test_pipeline.py` 加断言（类型存在、资源在内、金额在范围内、陷阱资源不在被标记集合里），再跑 `make test`。
 8. 评估：见下一节。检测器的新发现要能在 `ground_truth` 里找到对应项，否则会拉低 precision。
+
+## 改判断层与 LLM 调用
+
+判断层在 `finops_agent/judge/`，模型出口只有 `finops_agent/llm.py`。评估一律用回放：`FINOPS_LLM_MODE` 默认是 `replay`，读 `eval/cassettes/` 里键为 sha256(模型 + prompt) 的 json，没有对应 cassette 会报错。
+
+- 改了 prompt 或线索编号，对应 cassette 的键就变了。需要重新录制（`FINOPS_LLM_MODE=record`，真实调用 `claude -p`，每次约 0.02 到 0.03 美元），cassette 只增不改，旧的留着。
+- 录制是一次有意的动作，不要在 CI 里做。记下调用次数和成本写进 evidence。
+- 改了校验规则（`finops_agent/judge/validate.py`），要重跑 `eval.test_adversarial` 与 `finops_agent.test_judge_grounding`。
+- 在样本外世界上看到失败再去修，会让那个世界被污染。想要未被污染的数字，先冻结一个新世界再评估，做法见 [`eval/EXPERIMENTS.md`](eval/EXPERIMENTS.md) §7。
 
 ## 加一个测试场景和标准答案
 

@@ -1,6 +1,6 @@
 # 需求分析：FinOps Agent
 
-来源：语音 `2026-10-23_2311` / `2331` / `2335`（主），`1715` / `1758` / `1809`（FinOps 模型补充），`2026-10-20_1206`（面试叙事）。原文在 `context-infrastructure/contexts/daily_records/`，不进本仓库。
+来源：语音 `2026-10-23_2311` / `2331` / `2335`（主），`1715` / `1758` / `1809`（FinOps 模型补充），`2026-10-20_1206`（面试叙事）。原文在维护者的私有 context 仓库里，不进本仓库。
 
 ## 1. 一句话
 
@@ -40,7 +40,7 @@
 | D3 | **安全 / 风险用例集**：tag 值、资源名、描述字段里埋 prompt 注入；无证据数字（幻觉）检测 | 注入用例全部不改变 agent 行为；报告里无来源的数字 = 0 | R6 |
 | D4 | 修复计划（dry-run）：把 finding 转成可审阅的变更计划，人工 gate 后才执行 | 默认只输出 plan；执行路径需要显式确认；有回滚说明 | R2 R4 |
 | D1b | **可见性链（以终为始）**，四环，每环单独产出、单独验收，上一环的结果是下一环的输入：① 从成本目标反推需要哪些可见性（成本 SLO/SLI 是什么）② 制定找 metric 的计划（去哪找、怎么查）③ 执行计划，产出 metric 清单（含查询证据）④ 逐个 metric 判断能否支撑某个 SLI，差集即缺口 | 每环一份产物 + 验收；缺口表每行有「为哪个 SLI 需要」和「查询证据」 | R17 R19 |
-| D5 | 主动 loop：cron 定期跑分析 + eval 回归 + 公理蒸馏，写进 `context/` | 每次运行留一份可 diff 的产物；回归下降会报出来 | R8 R10 |
+| D5 | 主动 loop：cron 定期跑分析 + eval 回归 + 公理蒸馏，写进私有 context 仓库 | 每次运行留一份可 diff 的产物；回归下降会报出来 | R8 R10 |
 | D6 | 开源打磨：README、架构图、quickstart（demo 数据 5 分钟跑起来）、LICENSE、贡献指南 | 新人 clone 后不需要 AWS 账号即可跑 demo | R11 |
 | D7 | 面试叙事：一页「这个项目证明了什么」，按 R1 的 Agent Engineer 口径 | 每个论点链接到具体 change / eval 结果 | R1 |
 | D8 | 主页 FinOps Agent 页：阶段时间线（每个 change → 交付物 → 报告/博客链接）+ GitHub 链接 | 页面从本仓库 `reports/` 和 git log 生成，新 change 提交后可重建；导航栏有入口 | R18 |
@@ -59,24 +59,33 @@
 
 ## 5. Harness Engineering 覆盖面（R15 的验收清单，也是 D7 的骨架）
 
-工业级使用 agent 的各个面，每一面都要在本项目里有可指认的实现。状态随 change 更新。
+工业级使用 agent 的各个面，每一面都在本项目里有可指认的实现。状态写明交付它的 change，证据在 `openspec/changes/<id>/evidence.md`。
 
 | 面 | 本项目里的实现 | 状态 |
 |---|---|---|
-| Context engineering（上限） | 项目级规则层 `rules/`（SOUL/USER/COMMUNICATION/WORKSPACE/axioms/skills），每次会话由 `CLAUDE.md` 加载；FinOps 领域模型作为 context | 规则层 ✅ c0003；领域模型计划 |
-| 权限与边界（下限） | 项目 hook `aws_readonly_guard.py` + AWS 侧 H1–H7 | hook ✅ c0001；AWS 侧待建 |
-| Spec 驱动 | 每个 change 一个 OpenSpec change，proposal/spec/tasks/evidence 留痕 | ✅ 从 c0001 起 |
-| 任务分解 / 计划 | 可见性链四环（D1b），每环先计划后执行，产物落 `visibility.json` | ✅ c0005（第 ① 环暂为人工给定） |
-| 工具设计 | 确定性检测器做拉数和计算；跨源信号输出为 Lead 交给判断层 | 确定性层 ✅ c0005；判断层待建 |
-| 评估 | golden set（`testenv/world.yaml`，12 finding / 4 trap / 3 gap）+ `eval/score.py` 打分 + baseline 回归闸 | ✅ c0004–c0006；当前 recall 0.58 / 金额加权 0.19 / 深层 0.44 |
-| 幻觉 / 注入防御 | D3 用例集；无出处数字检测 | 计划 |
-| 人工 gate / 回滚 | 写路径只出 plan，人工确认后执行（D4） | 计划 |
-| 验收 loop | 被动：hook / 单测 / CI（check → test → alerts-test → eval）；主动：每日巡检 `make inspect` + 跨运行 rot 检测 + SLO 告警 | 单测 ✅；CI ✅ c0006；巡检与 SLO ✅ c0007（cron 部署待真实环境） |
-| 可观测性（agent 自身） | 每次运行留 `trace.jsonl`（每次调用的来源、操作、参数、耗时）；测试服务器可记调用日志 | API trace ✅ c0005；token 成本待判断层 |
-| 多 agent 编排 | 可见性链各环可分派 subagent，主 agent 只合并 | 待设计 |
-| 记忆 / 知识沉淀 | 公理 FA01–FA13 在 `rules/axioms/`；每 change 一份博客笔记；cron 与母版同步（D5） | 公理 ✅ c0003；笔记 ✅；cron 待建 |
-| 可展示性 | 每 change 一份 HTML 报告；README 两部分 + 思考过程；主页阶段页（D8） | 报告 ✅；README ✅ c0006；主页待建 |
-| 运营可持续（FinOps SLO） | 8 个成本 SLI、浪费预算、11 条告警（promtool 单测）、巡检节奏、复发检测 | ✅ c0007 |
+| Context engineering（上限） | 项目级规则层 `rules/`（SOUL/USER/COMMUNICATION/WORKSPACE/axioms/skills），每次会话由 `CLAUDE.md` 加载；FinOps 领域模型写进 [`METHOD.md`](METHOD.md) 与 README 第一部分；规则同步工具 `tools/sync_rules.py` | ✅ c0003 规则层；c0008 语言规则；c0012 同步工具；c0013 方法与领域模型文档 |
+| 权限与边界（下限） | 项目 hook `aws_readonly_guard.py` + 测试服务器拒写 + 处置只出 dry-run 计划；AWS 侧 H1–H7 加固清单见 [`aws_account_hardening.md`](aws_account_hardening.md) | hook ✅ c0001；服务器拒写 ✅ c0004；dry-run 方案 ✅ c0011。AWS 侧加固只列需求，落地受阻于真实 AWS 账号（见下方例外） |
+| Spec 驱动 | 每个 change 一个 OpenSpec change，proposal/spec/tasks/evidence 留痕 | ✅ 从 c0001 起，c0001 到 c0025 |
+| 任务分解 / 计划 | 可见性链四环（D1b），每环先计划后执行，产物落 `visibility.json`；第 ① 环可由 LLM 从成本目标推导，第 ② 环按语义发现指标名 | ✅ c0002、c0005；c0017 LLM 推导第 ① 环；c0020 第 ② 环发现与 need 级第 ④ 环 |
+| 工具设计 | 确定性检测器做拉数和计算；跨源信号输出为 Lead，由判断层的取证器算出候选金额再交给模型选择 | ✅ c0005 检测器；c0009 判断层与取证器；c0023 持续异常线索 |
+| 评估 | golden set（`testenv/world.yaml`，12 finding / 4 trap / 3 gap）+ `eval/score.py` + baseline 回归闸；样本内、样本外、预注册新世界分开报 | ✅ c0004–c0006；c0009 recall 1.0（样本内）；c0015 样本外与实验记录；c0024 预注册世界 recall 0.75 |
+| 幻觉 / 注入防御 | 12 个注入变体 + 输出数字落地规则（G1–G9）；数字诱饵由校验器脱敏而不是否决 | ✅ c0015 用例集与落地规则；c0022 number_bait |
+| 人工 gate / 回滚 | 写路径只出 dry-run 计划，含撤回成本与回滚说明，无 `--approve` 不执行，承诺折扣只给建议 | ✅ c0011 dry-run 方案；c0016 接入每次运行 |
+| 验收 loop | 被动：hook / 单测 / CI（check → test → alerts-test → eval）；主动：每日巡检 `make inspect` + 跨运行 rot 检测 + SLO 告警 + `make rot-demo` | ✅ CI c0006；巡检与 SLO c0007；三周期 rot 演示 c0010；resolved 与 not_redetected 区分 c0023。cron 在真实环境的部署受阻于真实 AWS 账号 |
+| 可观测性（agent 自身） | `trace.jsonl` 记每次外部调用，LLM 调用带 tokens、延迟、成本、模式、结论；报告「Agent 成本」一节；LLM 录制回放 | ✅ c0005 API trace；c0009 token 成本与 cassette |
+| 多 agent 编排 | 4 波并行、每个 agent 独立 worktree 与 owned_paths、主 agent 只合并并重验、变更走 escrow、NEXT 准入规则；过程记录在 [`BUILD_PROCESS.md`](BUILD_PROCESS.md)，完成标准在 [`MATURITY.md`](MATURITY.md) | ✅ c0009 到 c0025 的构建本身；c0025 文档化 |
+| 记忆 / 知识沉淀 | 公理 FA01–FA13 在 `rules/axioms/`；每 change 一份博客笔记；母版同步提议工具 | ✅ c0003 公理；笔记每个 change；c0012 同步工具（提议不落盘） |
+| 可展示性 | 每 change 一份 HTML 报告；README 两部分 + 思考过程；六张图 + 导读页；NARRATIVE、MATURITY；主页阶段页（D8） | 报告 ✅ c0001 起；README ✅ c0006、c0025；图与导读页 ✅ c0019；叙事与成熟度 ✅ c0025。主页入口受阻于维护者批准 push（见下方例外） |
+| 运营可持续（FinOps SLO） | 8 个成本 SLI、浪费预算、11 条告警（promtool 单测）、巡检节奏、五种发现状态 | ✅ c0007；c0023 加 not_redetected |
+| 五段式与预防 | 每条标准答案与每条发现读成现状、期望、差异、处置、预防；测试数据目录页 | ✅ c0014 目录页；c0016 报告卡片、预防控制表与 owner |
+| 省钱核实 | 用前后两期 Cost Explorer 数据核实 resolved 的真实节省，偏差按原因分类 | ✅ c0018 方法；c0021 真实偏差场景 |
+
+### 依赖维护者的例外
+
+下面两行是矩阵里仅有的、受阻于维护者而不是工程的项目；除此之外，矩阵里不再有尚未交付的行。
+
+- 真实 AWS 账号：AWS 侧 H1–H7 加固的落地、个人账号上的只读运行、cron 巡检的真实部署，都需要维护者建好只读 profile。
+- 主页入口：本地构建可做，push 到主页仓库需要维护者批准。
 
 ## 6. 已确认（2026-10-23 23:44–23:45）
 
@@ -91,4 +100,4 @@
 
 | Q | 决定 |
 |---|---|
-| Q5 主页 | `https://shaorui0.github.io/#/cn`。源码在 context-infrastructure 的 `projects/career_interview/resume_site`（`content/*.md` 是事实源，`build_content.py` 构建），部署仓库 `shaorui0/shaorui0.github.io`。D8 在这里加 FinOps Agent 入口 |
+| Q5 主页 | `https://shaorui0.github.io/#/cn`。源码在维护者私有 context 仓库的简历站目录（content 下的 md 是事实源，由构建脚本生成），部署仓库是主页的 GitHub Pages 仓库。D8 在这里加 FinOps Agent 入口 |
