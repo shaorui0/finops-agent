@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>0024-fresh-heldout</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">0024-fresh-heldout</h1>
+</header>
+<h1 id="c0024-预注册的新样本外世界">c0024 预注册的新样本外世界</h1>
+<h2 id="改了什么">改了什么</h2>
+<p>新建一个完整的合成账号
+<code>testenv/heldout/fresh_world.yaml</code>（货运追踪
+SaaS，eu-west-1，三个 AZ，2026-06，月成本约 6.9K 美元）。12
+条标准答案（9 条 &gt;= 3 跳，覆盖 M1、M3、M4、M5、M6）、5 个陷阱（含 1
+个 metadata 注入）、3 个可见性缺口。<code>eval/heldout.py</code>
+把它作为
+<code>fresh_world</code>（kind=preregistered）加入评估；<code>eval/test_heldout.py</code>
+钉住数字；<code>eval/EXPERIMENTS.md</code> 追加第 7 节。没有改任何 agent
+代码、prompt、world.py、已有 cassette。</p>
+<h2 id="为什么">为什么</h2>
+<p><code>next_month</code>、<code>month_after</code> 被用来发现并修复了
+GT02 的漏检（c0023），它们的 1.0
+不再是泛化估计；基础世界是样本内。当时没有一个未被污染的数字。</p>
+<h2 id="协议提交顺序就是证据">协议（提交顺序就是证据）</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>阶段</th>
+<th>commit</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A preregister</td>
+<td><code>e5d4689</code></td>
+<td>世界 + 标准答案 + 评估命令 + 指标 + 决策规则 +
+解读区间；此前没有运行过 agent 或判断层</td>
+</tr>
+<tr>
+<td>B record + run</td>
+<td><code>1ab746f</code></td>
+<td>录制 8 次判断调用（预算 12），新增 8 个 cassette，运行一次</td>
+</tr>
+<tr>
+<td>C results</td>
+<td><code>4b8523e</code></td>
+<td>钉住数字；EXPERIMENTS §7</td>
+</tr>
+</tbody>
+</table>
+<p>决策规则：不根据结果改任何 agent 代码或 prompt；标准答案 A
+之后不改，事后发现的错误记 errata。</p>
+<h2 id="结果">结果</h2>
+<table>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+<col style="width: 9%" />
+</colgroup>
+<thead>
+<tr>
+<th>world</th>
+<th>kind</th>
+<th>recall</th>
+<th>savings_recall</th>
+<th>precision</th>
+<th>savings_accuracy</th>
+<th>step_agreement</th>
+<th>deep recall</th>
+<th>陷阱违规</th>
+<th>LLM 调用</th>
+<th>成本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>base</td>
+<td>样本内</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>0.9167</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>0</td>
+<td>7</td>
+<td>$0.1426</td>
+</tr>
+<tr>
+<td>next_month</td>
+<td>已污染样本外</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>0.8</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>0</td>
+<td>7</td>
+<td>$0.1839</td>
+</tr>
+<tr>
+<td>month_after</td>
+<td>已污染样本外</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>1.0</td>
+<td>0</td>
+<td>7</td>
+<td>$0.1617</td>
+</tr>
+<tr>
+<td><strong>fresh_world</strong></td>
+<td><strong>预注册</strong></td>
+<td><strong>0.75</strong></td>
+<td><strong>0.568</strong></td>
+<td>1.0</td>
+<td><strong>0.5385</strong></td>
+<td>1.0</td>
+<td><strong>0.6667</strong></td>
+<td><strong>1</strong></td>
+<td>8</td>
+<td>$0.1507</td>
+</tr>
+</tbody>
+</table>
+<p>recall 0.75 = 9/12，Wilson 95% 区间约 [0.47, 0.91]。落差的点估计是
+0.25 recall 与 0.43 savings_recall，但 n=12 不足以当成统计显著。</p>
+<h2 id="漏检与违规原因">漏检与违规（原因）</h2>
+<ul>
+<li><strong>GT02 NAT 缺 S3 endpoint，漏。</strong> NAT
+字节费整季度持平，没有跳变也没有相对历史基线的增长，不出线索；c0023
+的持续异常线索抓「比历史高」，抓不到「一直就这么高」。</li>
+<li><strong>GT03 跨 AZ，漏。</strong> 有线索，judge
+判证据不足（证据里只有一条成本行）。agent
+里没有取证器引用流量对指标；世界里 api 节点分处两个 AZ
+也是候选差异，原因没有隔离。</li>
+<li><strong>GT07 错标，漏。</strong> agent 的归因检测只比 tag
+与启动模板，我给的错标证据（ASG 成员、job 标签、db
+流量）和它不相交；部分是世界设计缺陷。</li>
+<li><strong>TR05 违规。</strong> 带 <code>keep-until</code> 的 available
+卷被确定性检测器报成未挂载卷，LLM 没参与。</li>
+</ul>
+<p>判断层本身没有失误：8 个判断全被接受，注入没有生效，GT11
+的承诺覆盖判断（节省 0）正确。</p>
+<h2 id="勘误原文未改">勘误（原文未改）</h2>
+<p>savings_accuracy 里 6 对范围外：4 对是我把 GT06、GT12
+写成多资源聚合条目、而 agent 按资源出 finding（加起来都在范围内）；1
+对是我漏了停机实例上的 gp2 卷（F09 重复计入）；1 对是 TR05 本身。</p>
+<h2 id="能证明什么不能证明什么">能证明什么、不能证明什么</h2>
+<p>能证明：冻结后的新世界上 recall 是 0.75 不是
+1.0；缺口在确定性检测与取证，不在判断层。不能证明：一个世界、合成数据、同一作者家族，区间宽，不能外推成真实账单的漏检率。</p>
+<h2 id="证据">证据</h2>
+<p><code>openspec/changes/c0024-fresh-heldout/evidence.md</code>、<code>prereg.md</code>、<code>fresh_world_result.json</code>、<code>fresh_world_record_output.txt</code>；<code>eval/EXPERIMENTS.md</code>
+§7。</p>
+</body>
+</html>

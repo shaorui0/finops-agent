@@ -237,7 +237,7 @@ number_bait 是对**校验器**的攻击，不是对模型的：模型做对了�
 |---|---|---|
 | A preregister | `e5d4689` | `testenv/heldout/fresh_world.yaml`（世界 + 12 条标准答案 + 5 个陷阱 + 3 个可见性缺口，五段式）、`openspec/changes/c0024-fresh-heldout/prereg.md`（评估命令、指标、决策规则、解读区间）。此前没有对该世界运行过 agent、判断层或评分器 |
 | B record + run | `1ab746f` | `eval/heldout.py` 加入 `fresh_world`（kind=`preregistered`）；录制 8 次判断调用（预算 12），新增 8 个 cassette，没有改动任何已有 cassette；运行一次；原始 JSON 与输出落盘 |
-| C results | 本节所在的 `impl C` commit | `eval/test_heldout.py` 钉住数字；本节 |
+| C results | `4b8523e` | `eval/test_heldout.py` 钉住数字；本节 |
 
 A 之后、B 之前跑过一次 `FINOPS_NO_JUDGE=1` 的点数线索（prereg.md §3 允许，目的是核对录制预算）：确定性层 10 条 finding、5 条线索、recall 0.5、1 个陷阱违规，没有 LLM 调用，没有据此改任何东西。标准答案自 A 之后没有改动（`git diff e5d4689 HEAD -- testenv/heldout/fresh_world.yaml` 为空）。
 
@@ -306,7 +306,7 @@ savings_accuracy 0.5385 = 7/13，其中偏低有两层不是 agent 的错：
 | 已污染样本外 | 1.0 / 1.0 | 1.0 / 1.0 | 0.8 / 1.0 | 0 |
 | 预注册 fresh_world | 0.75 | 0.568 | 0.5385 | 1 |
 
-第 6 节说「回到 1.0 只说明修复有效」。这一节给出对应的另一半：换一个世界，recall 降到 0.75，savings_recall 降到 0.568。三个漏检（NAT 持平稳态、跨 AZ 证据不足、非模板路径的错标）和一个陷阱违规（保留 tag）都是在确定性层或证据取证层，不在判断层：8 个 LLM 判断全部被接受，4 个有线索的 waste/not_waste 判断全对（L02 not_waste、L03 waste、L06 waste、L07 waste 与净节省 0、L08 not_waste），判断层没有被注入欺骗。**样本内的 1.0 部分是拟合的**，这与 5.3 的「样本内过拟合」威胁一致，但落差的来源主要是检测与取证覆盖，而不是 prompt 对账号的过拟合。
+第 6 节说「回到 1.0 只说明修复有效」。这一节给出对应的另一半：换一个世界，recall 降到 0.75，savings_recall 降到 0.568。三个漏检（NAT 持平稳态、跨 AZ 证据不足、非模板路径的错标）和一个陷阱违规（保留 tag）都是在确定性层或证据取证层，不在判断层：8 个 LLM 判断全部被接受，5 个 waste/not_waste 判断全对（L02 not_waste、L03 waste、L06 waste、L07 waste 与净节省 0、L08 not_waste），判断层没有被注入欺骗。另有两条 `cost_growth` 线索（L04 `EBS:SnapshotUsage`、L05 `EBS:VolumeUsage.gp3`）是世界里卷与快照在窗口前不久才创建造成的成本抬升，judge 正确判 `insufficient_evidence`，没有产生 finding，也没有误报，但它们占了 2 次调用。**样本内的 1.0 部分是拟合的**，这与 5.3 的「样本内过拟合」威胁一致，但落差的来源主要是检测与取证覆盖，而不是 prompt 对账号的过拟合。
 
 ### 7.7 能证明什么、不能证明什么
 
