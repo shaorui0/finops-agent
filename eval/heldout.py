@@ -37,8 +37,11 @@ from testenv import aws_server, metrics_server, world as world_mod
 ROOT = Path(__file__).resolve().parent.parent
 SCEN = ROOT / "testenv" / "scenarios"
 import os
-_LO, _HI = (int(x) for x in os.environ.get("FINOPS_HELDOUT_PORTS", "31568-31599").split("-"))
-PORT_RANGE = range(_LO, _HI + 1)     # in-process test servers bind here (override with FINOPS_HELDOUT_PORTS=lo-hi)
+# Port block 47500-47599 is reserved for in-process held-out servers (the first free port is taken, so no env is needed);
+# FINOPS_HELDOUT_PORTS=lo-hi overrides it. Other blocks: 4566/9090 `make servers`, 16566/16990 scripts/rot_demo.sh.
+DEFAULT_PORTS = "47500-47599"
+_LO, _HI = (int(x) for x in os.environ.get("FINOPS_HELDOUT_PORTS", DEFAULT_PORTS).split("-"))
+PORT_RANGE = range(_LO, _HI + 1)     # in-process test servers bind here
 KEYS = ("recall", "savings_recall", "precision", "savings_accuracy", "step_agreement", "depth", "leads")
 PRICE = {"gp2": 0.10, "gp3": 0.08, "io1": 0.125}
 

@@ -34,6 +34,20 @@ def mksnap(volumes=(), cost=None):
             "volumes": [{"VolumeId": i, "State": "available", "VolumeType": t, "Size": z, "Attachments": []} for i, t, z in volumes]}
 
 
+class ExplicitSnapshotTest(unittest.TestCase):
+    def test_no_module_level_snapshot_stash(self):
+        from finops_agent import slo
+        self.assertFalse(hasattr(slo, "_LAST_SNAP"))
+
+    def test_snapshot_is_only_taken_from_the_argument(self):
+        gp2 = F("F1", "gp2_to_gp3", ["vol-a"])
+        snap = mksnap([("vol-a", "gp2", 100)], {"vol-a": 14.0})
+        _, s1 = diff_state([gp2], None, "r1", date(2026, 10, 1), snap)
+        d_no, _ = diff_state([], s1, "r2", date(2026, 11, 1))            # no snapshot: legacy behavior, gone = resolved
+        d_yes, _ = diff_state([], s1, "r2", date(2026, 11, 1), snap)     # explicit snapshot: still there, not re-detected
+        self.assertEqual((len(d_no["resolved"]), len(d_yes["not_redetected"])), (1, 1))
+
+
 class NotRedetectedTest(unittest.TestCase):
     """A finding that vanishes is `resolved` only with evidence the resource changed; otherwise it was just not re-detected."""
     GP2 = F("F1", "gp2_to_gp3", ["vol-a"])

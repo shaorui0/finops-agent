@@ -26,8 +26,6 @@ def _age_days(ts: str, now: date) -> float:
 
 
 def compute_slis(result: dict, snap: dict, collector, run_date: date, state: dict | None) -> dict:
-    global _LAST_SNAP
-    _LAST_SNAP = snap
     spend = result["ranking"]["total"]
     vals, evidence = {}, {}
 
@@ -105,7 +103,6 @@ def evaluate(slis: dict, cfg: dict) -> list[dict]:
     return rows
 
 
-_LAST_SNAP: dict | None = None   # set by compute_slis; lets diff_state see the snapshot without a signature change in __main__
 COST_DROP = 0.9                  # a resource whose daily cost fell below this share of what it was when detected has changed
 
 
@@ -175,8 +172,6 @@ def diff_state(findings: list[dict], state: dict | None, run_id: str, run_date: 
     A finding that is gone is `resolved` only with cost-side evidence that the resource or its usage changed; if the
     resource is still there and still costs the same it is `not_redetected` (a missed detection, not a fix). Without a
     snapshot (callers that predate this) every gone finding is `resolved`, the old behavior."""
-    global _LAST_SNAP
-    snap, _LAST_SNAP = (snap if snap is not None else _LAST_SNAP), None
     state = state or {"runs": [], "first_seen": {}, "resolved": {}}
     prev_open = set(state.get("open", []))
     missed = dict(state.get("not_redetected", {}))

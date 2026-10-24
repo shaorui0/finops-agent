@@ -149,7 +149,12 @@ def render(run: dict) -> str:
         h.append("<h2>FinOps SLO <span class=muted>· 成本健康在保持，还是在腐烂？</span></h2>")
         h.append(f"<p>与上一次运行相比（此前共 {so['previous_runs']} 次运行）："
                  f"新增 <b>{len(d['new'])}</b> · 持续 <b>{len(d['persisting'])}</b> · 已解决 <b>{len(d['resolved'])}</b> · "
-                 f"复发 <b class={'missing' if d['regressed'] else 'covered'}>{len(d['regressed'])}</b></p>")
+                 f"复发 <b class={'missing' if d['regressed'] else 'covered'}>{len(d['regressed'])}</b> · "
+                 f"未再检出 <b class={'partial' if d.get('not_redetected') else 'covered'}>{len(d.get('not_redetected', []))}</b></p>")
+        if d.get("not_redetected"):
+            h.append("<div class=card><h3 class=partial>未再检出 <span class=muted>· 资源仍在，但本次未再检出</span></h3><ul>"
+                     + "".join(f"<li><code>{escape(x['key'])}</code> <span class=muted>自 {escape(str(x.get('since')))} 起 · {escape(x.get('why') or '资源仍在，但本次未再检出')}</span></li>"
+                               for x in d["not_redetected"]) + "</ul></div>")
         h.append("<div class=wrap><table><tr><th>SLI</th><th class=num>值</th><th>目标</th><th>状态</th><th>节奏</th><th>证据</th></tr>")
         for r in so["rows"]:
             v = slo.fmt(r["value"], r["unit"])
