@@ -7,15 +7,25 @@ export FINOPS_LLM_MODE ?= replay
 PROM_URL ?= http://127.0.0.1:9090
 AWS_ENDPOINT ?=
 
-.PHONY: test check servers demo eval record stop alerts-test inspect rot-demo
+.PHONY: test check check-docs servers demo eval record stop alerts-test inspect rot-demo
 
-test:            ## all unit and end-to-end tests
-	$(PY) -W ignore -m unittest hooks/test_aws_readonly_guard.py
+# DOCS_CHECK=1 adds the docs checks to `make check`; CI sets it (see .github/workflows/ci.yml)
+DOCS_CHECK ?=
+
+# Every test module in the repo, found by discovery (a new test_*.py is picked up without editing this file).
+# In-process servers bind port 0 (OS-chosen) except eval/heldout.py, whose block is 47500-47599 (FINOPS_HELDOUT_PORTS overrides).
+test:            ## all unit and end-to-end tests (every finops_agent/ eval/ testenv/ tools/ hooks/ test_*.py)
+	$(PY) -W ignore -m unittest discover -s hooks -p 'test_*.py'
 	$(PY) -m unittest discover -s tools -p 'test_*.py'
-	$(PY) -W ignore -m unittest testenv.test_testenv testenv.test_catalog finops_agent.test_pipeline finops_agent.test_slo finops_agent.test_llm finops_agent.test_judge finops_agent.test_remediate finops_agent.test_fivepart eval.test_score
+	$(PY) -W ignore -m unittest discover -t . -s finops_agent -p 'test_*.py'
+	$(PY) -W ignore -m unittest discover -t . -s eval -p 'test_*.py'
+	$(PY) -W ignore -m unittest discover -t . -s testenv -p 'test_*.py'
 
-check:           ## rules layer + leak scan
-	$(PY) tools/check_rules.py
+check:           ## rules layer + leak scan; docs checks (links, heading language) only when DOCS_CHECK=1
+	$(PY) tools/check_rules.py $(if $(filter 1,$(DOCS_CHECK)),--docs,)
+
+check-docs:      ## only the documentation checks: relative links / backticked paths resolve, headings contain Chinese
+	$(PY) tools/check_rules.py --docs
 
 servers:         ## start both test servers in the background
 	$(PY) -m testenv.aws_server --port $(AWS_PORT) & echo $$! > .aws_server.pid
