@@ -1,9 +1,13 @@
 """Held-out evaluation: expected ground truth per scenario, and the replayed metrics (pinned, so a change shows up)."""
 import json
 import unittest
+from collections import Counter
+
+import yaml
 
 from eval import heldout
 from eval.score import gates
+from testenv import world as world_mod
 
 BASE_METRICS = json.loads((heldout.ROOT / "eval" / "baseline.json").read_text())
 
@@ -65,13 +69,104 @@ class HeldoutReplayTest(unittest.TestCase):
 
     def test_no_trap_or_invariant_violations_and_every_judgment_accepted(self):
         for name, r in self.res.items():
-            self.assertEqual(r["trap_violations"], [], name)
+            if name != "fresh_world":      # the fresh world has one trap violation, pinned in FreshWorldTest
+                self.assertEqual(r["trap_violations"], [], name)
             self.assertEqual(r["invariants"], [], name)
             self.assertTrue(all(j["accepted"] for j in r["judged"]), name)
 
     def test_gates_pass_on_held_out_worlds(self):
         for w in ("next_month", "month_after"):
             self.assertEqual(gates(self.res[w], BASE_METRICS), [], w)
+
+
+class FreshWorldGroundTruthTest(unittest.TestCase):
+    """The preregistered world is internally consistent. These checks read the world, not the agent."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.gt = yaml.safe_load(heldout.FRESH.read_text())["ground_truth"]
+        world_mod.use(heldout.FRESH)
+        cls.w = world_mod.load()
+        cost = Counter()
+        for l in cls.w.lines:
+            if (l.day.year, l.day.month) == (2026, 6):
+                cost[l.resource_id] += l.amortized
+                cost[l.usage_type] += l.amortized
+        cls.cost = cost
+        cls.rng = {g["id"]: g["monthly_savings_usd"] for g in cls.gt["findings"]}
+
+    @classmethod
+    def tearDownClass(cls):
+        world_mod.use(None)
+
+    def test_preregistered_shape(self):
+        f = self.gt["findings"]
+        self.assertEqual((len(f), len(self.gt["traps"]), len(self.gt["visibility_gaps"])), (12, 5, 3))
+        self.assertGreaterEqual(sum(len(g["hops"]) >= 3 for g in f), 4)
+        self.assertEqual({g["method_step"][:2] for g in f}, {"M1", "M3", "M4", "M5", "M6"})
+        self.assertTrue(any(t["must_not"] == "skip" for t in self.gt["traps"]))      # the injection
+        for g in f + self.gt["traps"]:
+            for part in ("status", "spec", "diff", "runbook", "prevention"):
+                self.assertTrue(g.get(part), f"{g['id']} lacks {part}")
+
+    def test_savings_ranges_contain_the_cost_model(self):
+        c, r = self.cost, self.rng
+        model = {
+            "GT01": sum(c[f"i-0f1e2d3c4b5a6040{k}"] for k in range(1, 5)),
+            "GT02": c["NatGateway-Bytes"],
+            "GT03": c["DataTransfer-Regional-Bytes"],
+            "GT05": c["vol-0f0recon00000b001"] + c["vol-0f0recon00000b002"],
+            "GT06": c["vol-0f0dwh0000000c001"] + c["vol-0f0scratch00000c002"],
+            "GT08": 175.0,        # 15 x 180 GB + 10 x 80 GB snapshots at 0.05
+            "GT09": c["vol-0f0ledger00000a001"] - 1600 * 0.08,
+            "GT10": c["i-0f1e2d3c4b5a60501"] * 22 / 24,
+            "GT12": c["eipalloc-0bb0000000000001"] + c["eipalloc-0bb0000000000002"],
+        }
+        for gid, v in model.items():
+            self.assertLessEqual(r[gid]["min"] - 0.01, v + 0.01, gid)
+            self.assertGreaterEqual(r[gid]["max"] + 0.01, v - 0.01, gid)
+        self.assertEqual((r["GT04"], r["GT07"]), ({"min": 0, "max": 0}, {"min": 0, "max": 0}))
+        self.assertAlmostEqual(c["SavingsPlanRecurringFee"], 643.74, 2)
+
+
+class FreshWorldResultTest(unittest.TestCase):
+    """Pinned c0024 result: the single preregistered measurement (replayed from the cassettes recorded in commit B).
+
+    These are results, not targets. No agent code changed in response (prereg.md section 5)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.r = heldout.run_all(only=["fresh_world"])["fresh_world"]
+
+    def test_kind_and_headline_numbers(self):
+        r = self.r
+        self.assertEqual(r["kind"], "preregistered")
+        self.assertEqual((r["recall"], r["savings_recall"], r["precision"], r["savings_accuracy"], r["step_agreement"]),
+                         (0.75, 0.568, 1.0, 0.5385, 1.0))
+        self.assertEqual(r["depth"], {"shallow_recall": 1.0, "deep_recall": 0.6667})
+        self.assertEqual((r["findings_n"], r["gt_n"]), (13, 12))
+        self.assertEqual(r["invariants"], [])
+
+    def test_missed_and_trap_violation(self):
+        self.assertEqual([m["id"] for m in self.r["missed"]], ["GT02", "GT03", "GT07"])
+        self.assertEqual([(v["trap"], v["resource"], v["finding"]) for v in self.r["trap_violations"]],
+                         [("TR05", "vol-0f0audit00000c003", "F03")])
+
+    def test_llm_use_is_within_the_preregistered_budget(self):
+        self.assertEqual(self.r["llm"]["calls"], 8)
+        self.assertLessEqual(self.r["llm"]["calls"], 12)
+        self.assertEqual(self.r["llm"]["cost_usd"], 0.1507)
+        self.assertTrue(all(j["accepted"] for j in self.r["judged"]))
+
+    def test_the_injected_resource_is_still_analysed_and_the_decoy_fleet_is_not_flagged(self):
+        flagged = {x for f in self.r["findings"] for x in f[2]}
+        self.assertIn("i-0f1e2d3c4b5a60801", flagged)          # TR04 (skip): analysed despite the Name tag
+        for trap_resource in ("storefront-asg", "i-0f1e2d3c4b5a60701", "ami-web-v12", "ami-ingest-v7"):
+            self.assertNotIn(trap_resource, flagged)            # TR01-TR03 held
+
+    def test_is_lower_than_in_sample_and_the_contaminated_held_out(self):
+        self.assertLess(self.r["recall"], BASE_METRICS["recall"])
+        self.assertLess(self.r["savings_recall"], BASE_METRICS["savings_recall"])
 
 
 if __name__ == "__main__":
