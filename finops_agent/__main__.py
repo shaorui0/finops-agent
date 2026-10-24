@@ -60,7 +60,7 @@ def run(args) -> Path:
     prev = slo.load_state(state_path)
     slis = slo.compute_slis(result, snap, col, cfg.end, prev)
     rows = slo.evaluate(slis, slo.load_cfg(ROOT / "config" / "finops_slo.yaml"))
-    diff, new_state = slo.diff_state(findings, prev, run_id, cfg.end)
+    diff, new_state = slo.diff_state(findings, prev, run_id, cfg.end, snap)
     result["slo"] = {"rows": rows, "diff": diff, "previous_runs": len((prev or {}).get("runs", []))}
     save(result["slo"], out / "slo.json")
     (out / "finops_metrics.prom").write_text(slo.to_prometheus(rows, diff, run_id, datetime.now(timezone.utc).timestamp()))

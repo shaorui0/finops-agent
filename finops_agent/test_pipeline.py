@@ -88,6 +88,19 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(rows["anomaly_time_to_detect_days"]["value"], 27)
         self.assertEqual(len(self.result["slo"]["diff"]["new"]), len(self.result["findings"]))
 
+    def test_report_shows_not_redetected_in_slo_section(self):
+        from finops_agent import report
+        run = json.loads(json.dumps(self.result))
+        run["trace"] = [json.loads(l) for l in (self.out / "trace.jsonl").read_text().splitlines()]
+        run["plans"] = json.loads((self.out / "plans.json").read_text())
+        run["fivepart"] = json.loads((self.out / "fivepart.json").read_text())
+        self.assertIn("未再检出 <b class=covered>0</b>", report.render(run))
+        run["slo"]["diff"]["not_redetected"] = [{"key": "gp2_to_gp3|vol-a", "since": "r1", "why": "vol-a 仍在清单里"}]
+        html = report.render(run)
+        self.assertIn("未再检出 <b class=partial>1</b>", html)
+        self.assertIn("资源仍在，但本次未再检出", html)
+        self.assertIn("gp2_to_gp3|vol-a", html)
+
     def test_trace_is_read_only(self):
         calls = [json.loads(l) for l in (self.out / "trace.jsonl").read_text().splitlines()]
         ops = [c["op"] for c in calls if c["source"] != "llm"]     # LLM calls are traced too, but they are not AWS/Prometheus reads
